@@ -1,0 +1,9 @@
+# Overrides on top of detekt's default rules. Keep this file short:
+# add an entry only with a reason, and prefer fixing the code.
+complexity:
+  LongParameterList:
+    # Spring constructors list their dependencies.
+    ignoreAnnotated:
+      - Service
+      - RestController
+      - Component

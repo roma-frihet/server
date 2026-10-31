@@ -1,0 +1,19 @@
+# Supabase CLI(supabase start) 없이 DB만 로컬로 띄우고 싶을 때 쓰는 대안.
+# Supabase 로컬 DB와 같은 포트(54322)·계정(postgres/postgres)을 써서 .env를 바꿀 필요가 없다.
+# 주의: 이 방식은 Supabase Auth가 없으므로 JWT가 필요한 API는 호출할 수 없다.
+services:
+  postgres:
+    image: postgres:17
+    container_name: roma-frihet-postgres
+    ports:
+      - "54322:5432"
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      TZ: Asia/Seoul
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+volumes:
+  postgres-data:
