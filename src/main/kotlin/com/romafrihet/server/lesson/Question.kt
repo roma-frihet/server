@@ -59,6 +59,12 @@ class Question private constructor(
     @OrderBy("displayOrder ASC")
     val options: MutableList<QuestionOption> = mutableListOf()
 
+    /** 객관식은 이 문제의 보기만 받는다. 주관식은 보기를 고르지 않는다. */
+    fun accepts(optionId: Long?): Boolean = when (type) {
+        QuestionType.MULTIPLE_CHOICE -> optionId == null || options.any { it.id == optionId }
+        QuestionType.SHORT_ANSWER -> optionId == null
+    }
+
     /** 주관식은 공백과 대소문자를 무시하고 인정 답안과 비교한다. */
     fun isCorrectAnswer(optionId: Long?, text: String?): Boolean = when (type) {
         QuestionType.MULTIPLE_CHOICE -> options.any { it.id == optionId && it.isCorrect }

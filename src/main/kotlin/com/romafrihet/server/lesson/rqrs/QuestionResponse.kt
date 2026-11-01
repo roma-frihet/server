@@ -60,4 +60,41 @@ class QuestionResponse private constructor() {
             fun of(dto: QuestionImageDto) = ImageResult(id = dto.id, url = dto.url)
         }
     }
+
+    /** 학생에게는 정답 여부를 내리지 않는다. */
+    @Schema(name = "QuestionResponseStudentOption")
+    data class StudentOption(val id: Long, val displayOrder: Int, val content: String?, val imageUrl: String?) {
+        companion object {
+            fun of(dto: QuestionOptionDto) = StudentOption(
+                id = dto.id,
+                displayOrder = dto.displayOrder,
+                content = dto.content,
+                imageUrl = dto.imageUrl,
+            )
+        }
+    }
+
+    @Schema(name = "QuestionResponseStudentResult")
+    data class StudentResult(
+        val id: Long,
+        val type: QuestionType,
+        val content: String?,
+        val imageUrl: String?,
+        val options: List<StudentOption>,
+    ) {
+        companion object {
+            /** 주관식 옵션은 정답 자체이므로 비워서 내린다. */
+            fun of(dto: QuestionDto) = StudentResult(
+                id = dto.id,
+                type = dto.type,
+                content = dto.content,
+                imageUrl = dto.imageUrl,
+                options =
+                when (dto.type) {
+                    QuestionType.MULTIPLE_CHOICE -> dto.options.map(StudentOption::of)
+                    QuestionType.SHORT_ANSWER -> emptyList()
+                },
+            )
+        }
+    }
 }
