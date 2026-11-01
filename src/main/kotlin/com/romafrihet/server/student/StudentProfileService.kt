@@ -1,6 +1,5 @@
 package com.romafrihet.server.student
 
-import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.common.exception.assertCheck
 import com.romafrihet.server.school.SchoolRepository
@@ -34,9 +33,7 @@ class StudentProfileService(
         return toDto(studentProfileRepository.save(StudentProfile.create(school, command)))
     }
 
-    fun find(userId: UUID): StudentProfileDto = toDto(
-        studentProfileRepository.findByUserId(userId) ?: throw BusinessException(ErrorCode.STUDENT_PROFILE_REQUIRED),
-    )
+    fun find(userId: UUID): StudentProfileDto? = studentProfileRepository.findByUserId(userId)?.let(::toDto)
 
     private fun toDto(profile: StudentProfile) = StudentProfileDto(
         schoolId = requireNotNull(profile.school.id),

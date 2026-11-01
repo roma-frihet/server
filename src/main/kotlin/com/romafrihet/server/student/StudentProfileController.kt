@@ -27,6 +27,6 @@ class StudentProfileController(private val studentProfileService: StudentProfile
 
     @Operation(summary = "내 가입 정보")
     @GetMapping("/me")
-    fun findMine(): StudentProfileResponse.Result =
-        StudentProfileResponse.Result.of(studentProfileService.find(getUserId()))
+    fun findMine(): StudentProfileResponse.Mine =
+        StudentProfileResponse.Mine.of(studentProfileService.find(getUserId()))
 }

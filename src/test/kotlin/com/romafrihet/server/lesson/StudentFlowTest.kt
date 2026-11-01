@@ -10,6 +10,7 @@ import com.romafrihet.server.lesson.command.QuestionCommand
 import com.romafrihet.server.lesson.command.SubmissionCommand
 import com.romafrihet.server.student.StudentProfileService
 import com.romafrihet.server.student.command.StudentProfileCommand
+import com.romafrihet.server.student.rqrs.StudentProfileResponse
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -65,6 +66,16 @@ class StudentFlowTest : TeacherFlowFixture() {
         assertThat(pending.studentName).isEqualTo(profile.name)
         assertThat(pending.studentNumber).isEqualTo(profile.studentNumber)
         assertThat(pending.subject).isEqualTo("과학")
+    }
+
+    @Test
+    fun `내 정보는 저장 전에는 profile이 null이고 저장 후에는 저장한 값이다`() {
+        assertThat(StudentProfileResponse.Mine.of(studentProfileService.find(studentId)).profile).isNull()
+
+        val saved = saveProfile()
+
+        assertThat(StudentProfileResponse.Mine.of(studentProfileService.find(studentId)).profile?.studentNumber)
+            .isEqualTo(saved.studentNumber)
     }
 
     @Test

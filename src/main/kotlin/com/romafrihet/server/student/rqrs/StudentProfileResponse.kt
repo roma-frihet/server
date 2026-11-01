@@ -26,4 +26,11 @@ class StudentProfileResponse private constructor() {
             )
         }
     }
+
+    @Schema(name = "StudentProfileResponseMine")
+    data class Mine(@Schema(nullable = true) val profile: Result?) {
+        companion object {
+            fun of(dto: StudentProfileDto?) = Mine(profile = dto?.let(Result::of))
+        }
+    }
 }
