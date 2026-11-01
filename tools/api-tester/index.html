@@ -272,7 +272,7 @@ const actions={
   },
   async mypage(){
     const d=await call('teacher','GET','/api/v1/teacher/mypage');
-    $('mypage').innerHTML=`<p><b>${esc(d.name)}</b> ${esc(d.schoolName)}</p><table><tr><th>수업</th><th>차시</th><th>반</th></tr>${d.courses.map(c=>`<tr><td>${c.grade}학년 ${esc(c.subject)}</td><td>${c.lessonCount}개</td><td>${c.classrooms.map(k=>esc(k.name)).join(', ')||'-'}</td></tr>`).join('')}</table>`;
+    $('mypage').innerHTML=`${d.profile?`<p><b>${esc(d.profile.name)}</b> ${esc(d.profile.schoolName)}</p>`:'<p class="muted">교사 정보를 아직 저장하지 않았습니다.</p>'}<table><tr><th>수업</th><th>차시</th><th>반</th></tr>${d.courses.map(c=>`<tr><td>${c.grade}학년 ${esc(c.subject)}</td><td>${c.lessonCount}개</td><td>${c.classrooms.map(k=>esc(k.name)).join(', ')||'-'}</td></tr>`).join('')}</table>`;
   },
   clearLog(){$('log').innerHTML=''}
 };
