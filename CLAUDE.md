@@ -45,6 +45,7 @@ com.romafrihet.server
 
 - 요청받은 범위만 수정합니다. 기존 코드의 위반은 고치지 않고 언급만 합니다.
 - 작업 전 같은 도메인의 기존 코드를 열어 이름과 패키지 관례를 맞춥니다.
+- API 경로나 Request, Response를 바꾸면 `tools/api-tester/`와 README의 API 테스터 설명도 함께 고칩니다. `check`로 잡히지 않습니다.
 
 ## 이름
 
