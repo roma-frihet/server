@@ -57,6 +57,14 @@ class ClassroomMembership private constructor(
     var status: MembershipStatus = MembershipStatus.PENDING
         protected set
 
+    /** 거절된 학생이 다시 요청하면 입력을 새로 받아 대기 상태로 되돌린다. */
+    fun reapply(command: ClassroomMembershipCommand.Create) {
+        assertCheck(status == MembershipStatus.REJECTED) { ErrorCode.MEMBERSHIP_ALREADY_REQUESTED }
+        studentName = command.studentName
+        studentNumber = command.studentNumber
+        status = MembershipStatus.PENDING
+    }
+
     fun approve() {
         assertCheck(status == MembershipStatus.PENDING) { ErrorCode.MEMBERSHIP_NOT_PENDING }
         status = MembershipStatus.APPROVED

@@ -50,6 +50,8 @@ class Classroom private constructor(course: Course, name: String) : BaseTimeEnti
         joinCodeExpiresAt = null
     }
 
+    fun isJoinCodeActive(now: LocalDateTime): Boolean = joinCodeExpiresAt?.isAfter(now) ?: false
+
     companion object {
         fun create(course: Course, command: ClassroomCommand.Create): Classroom =
             Classroom(course = course, name = command.name)
