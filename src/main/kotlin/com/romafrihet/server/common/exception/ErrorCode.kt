@@ -13,7 +13,6 @@ import org.springframework.http.HttpStatus
  * | CO | 수업 |
  * | LS | 차시/문제 |
  * | ST | 파일 저장소 |
- * | TP | 교사 정보 |
  */
 enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: String) {
     // Common
@@ -47,9 +46,6 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     QUESTION_IMAGE_NOT_USABLE(HttpStatus.BAD_REQUEST, "LS007", "사용할 수 없는 이미지입니다."),
     QUESTION_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "LS008", "PNG, JPEG, WebP 이미지만 올릴 수 있습니다."),
     LESSON_FINISHED(HttpStatus.CONFLICT, "LS009", "마감한 차시입니다."),
-
-    // Teacher profile
-    TEACHER_PROFILE_REQUIRED(HttpStatus.CONFLICT, "TP001", "교사 정보를 먼저 저장해 주세요."),
 
     // Storage
     STORAGE_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "ST001", "파일 저장소를 사용할 수 없습니다."),

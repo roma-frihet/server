@@ -1,6 +1,8 @@
 package com.romafrihet.server.teacher.dto
 
-data class MyPageDto(val name: String, val schoolId: Long, val schoolName: String, val courses: List<MyPageCourseDto>)
+data class MyPageDto(val profile: MyPageProfileDto?, val courses: List<MyPageCourseDto>)
+
+data class MyPageProfileDto(val name: String, val schoolId: Long, val schoolName: String)
 
 data class MyPageCourseDto(
     val id: Long,

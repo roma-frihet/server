@@ -10,6 +10,7 @@ import com.romafrihet.server.lesson.command.LessonOpeningCommand
 import com.romafrihet.server.report.command.ReportCommand
 import com.romafrihet.server.teacher.TeacherService
 import com.romafrihet.server.teacher.command.TeacherCommand
+import com.romafrihet.server.teacher.rqrs.TeacherResponse
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -107,7 +108,7 @@ class ReportTeacherFlowTest : TeacherFlowFixture() {
         val emptyCourse = createCourse("미술")
 
         val myPage = teacherService.findMyPage(teacherId)
-        assertThat(myPage.name).isEqualTo("김선생")
+        assertThat(myPage.profile?.name).isEqualTo("김선생")
         assertThat(myPage.courses.first { it.id == courseId }.lessonCount).isEqualTo(LESSON_COUNT)
 
         assertErrorCode(ErrorCode.CLASSROOM_HAS_RECORDS) {
@@ -118,5 +119,15 @@ class ReportTeacherFlowTest : TeacherFlowFixture() {
         }
         teacherService.deleteCourse(TeacherCommand.DeleteCourse(teacherId, emptyCourse))
         assertThat(teacherService.findMyPage(teacherId).courses.map { it.id }).doesNotContain(emptyCourse)
+    }
+
+    @Test
+    fun `프로필을 저장하기 전 마이페이지는 프로필 없이 수업을 보여 준다`() {
+        val course = createCourse("미술")
+
+        val myPage = TeacherResponse.MyPage.of(teacherService.findMyPage(teacherId))
+
+        assertThat(myPage.profile).isNull()
+        assertThat(myPage.courses.map { it.id }).containsExactly(course)
     }
 }

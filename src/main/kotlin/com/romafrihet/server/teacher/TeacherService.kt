@@ -3,7 +3,6 @@ package com.romafrihet.server.teacher
 import com.romafrihet.server.classroom.ClassroomMembershipRepository
 import com.romafrihet.server.classroom.ClassroomRepository
 import com.romafrihet.server.classroom.getOwned
-import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.common.exception.assertCheck
 import com.romafrihet.server.course.CourseRepository
@@ -17,6 +16,7 @@ import com.romafrihet.server.teacher.command.TeacherCommand
 import com.romafrihet.server.teacher.dto.MyPageClassroomDto
 import com.romafrihet.server.teacher.dto.MyPageCourseDto
 import com.romafrihet.server.teacher.dto.MyPageDto
+import com.romafrihet.server.teacher.dto.MyPageProfileDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
@@ -45,9 +45,7 @@ class TeacherService(
     }
 
     fun findMyPage(userId: UUID): MyPageDto {
-        val profile =
-            teacherProfileRepository.findByUserId(userId)
-                ?: throw BusinessException(ErrorCode.TEACHER_PROFILE_REQUIRED)
+        val profile = teacherProfileRepository.findByUserId(userId)
         val courses = courseRepository.findAllByUserIdOrderByGradeAscSubjectAsc(userId)
         val classrooms =
             classroomRepository.findAllByCourseUserIdOrderByNameAsc(userId).groupBy { requireNotNull(it.course.id) }
@@ -57,9 +55,10 @@ class TeacherService(
                 .groupingBy { requireNotNull(it.course.id) }
                 .eachCount()
         return MyPageDto(
-            name = profile.name,
-            schoolId = requireNotNull(profile.school.id),
-            schoolName = profile.school.name,
+            profile =
+            profile?.let {
+                MyPageProfileDto(name = it.name, schoolId = requireNotNull(it.school.id), schoolName = it.school.name)
+            },
             courses =
             courses.map { course ->
                 val courseId = requireNotNull(course.id)
