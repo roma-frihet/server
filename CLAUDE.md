@@ -73,7 +73,7 @@ com.romafrihet.server
 - 시각 필드는 `LocalDateTime`만 씁니다.
 - `@ManyToOne`, `@OneToOne`은 `LAZY`를 명시합니다. `CascadeType.REMOVE`, `ALL`은 `@ManyToOne`, `@ManyToMany`에 쓰지 않습니다.
 - 카운터에 `@Version`을 쓰지 않습니다. 충돌이 잦으면 JPQL bulk update, 드물면 엔티티 메서드로 증감합니다.
-- 스키마 변경은 `src/main/resources/db/migration`에 새 `V<번호>__<설명>.sql`을 추가합니다. 기존 파일은 고치지 않습니다.
+- 스키마 변경은 `src/main/resources/db/migration`에 새 `V<major>.<minor>.<patch>__<설명>.sql`을 추가합니다. 첫 버전은 `1.0.0`이고 이후 `1.0.1`처럼 올립니다. 기존 파일은 고치지 않습니다.
 - Entity는 Flyway DDL에 맞춥니다.
 
 ## DB 이름
