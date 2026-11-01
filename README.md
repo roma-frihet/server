@@ -48,8 +48,19 @@ npx supabase stop     # 끝날 때, 데이터는 남는다
 ```
 IntelliJ에서는 `ServerApplication.kt`의 ▶ 버튼으로 실행한다(작업 디렉터리가 프로젝트 루트여야 `.env`를 읽는다).
 
-- 헬스 체크: http://localhost:8080/actuator/health
-- API 문서: http://localhost:8080/swagger-ui.html
+### 로컬 주소
+
+| 이름 | 주소 | 용도 |
+|---|---|---|
+| Swagger | http://localhost:8080/swagger-ui.html | API 문서 |
+| 헬스 체크 | http://localhost:8080/actuator/health | 서버 상태 확인 |
+| API 테스터 | http://localhost:5500 | 브라우저에서 API 호출, 따로 실행 |
+| Supabase Studio | http://127.0.0.1:54323 | DB, 사용자, Storage 관리 |
+| Mailpit | http://127.0.0.1:54324 | 로컬에서 보낸 메일 확인 |
+| Supabase API | http://127.0.0.1:54321 | 로그인, 토큰 발급 |
+| Postgres | `localhost:54322`, DB·계정·비밀번호 `postgres` | DB 직접 연결 |
+
+Supabase 주소는 `npx supabase start`를 실행해야 열린다. 값이 다르면 `npx supabase status`로 확인한다.
 
 ## API 테스터
 
