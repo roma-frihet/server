@@ -10,6 +10,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 
 /** 예외 → 응답 변환은 이 한 곳에서만 한다. */
@@ -54,6 +55,9 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun handleMethodNotSupported(): ProblemDetail = ErrorCode.METHOD_NOT_ALLOWED.toProblemDetail()
+
+    @ExceptionHandler(MaxUploadSizeExceededException::class)
+    fun handleMaxUploadSize(): ProblemDetail = ErrorCode.FILE_TOO_LARGE.toProblemDetail()
 
     @ExceptionHandler(NoResourceFoundException::class)
     fun handleNoResource(): ProblemDetail = ErrorCode.NOT_FOUND.toProblemDetail()

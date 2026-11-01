@@ -9,8 +9,8 @@ Spring Boot 4.1 + Kotlin 2.3 + JPA(QueryDSL) + Supabase(PostgreSQL, Auth) 백엔
 | 도구 | 버전 | 비고 |
 |---|---|---|
 | JDK | 21 | `sudo apt install openjdk-21-jdk-headless` |
-| Docker | 최신 | 로컬 Supabase 또는 Postgres 실행용. Testcontainers 테스트에도 필요하다 |
-| Supabase CLI | 최신 | 로컬 Supabase 사용 시 |
+| Docker | 최신 | 로컬 Supabase 실행용. Testcontainers 테스트에도 필요하다 |
+| Node.js | 최신 LTS | `npx supabase`로 Supabase CLI를 실행한다 |
 
 Gradle은 설치할 필요 없다. 저장소의 Gradle Wrapper(`gradlew`)를 쓴다.
 
@@ -24,21 +24,19 @@ cp .env.example .env
 
 `.env`는 git에 올라가지 않는다. 값 설명은 `.env.example` 주석을 본다.
 
-### 2. DB 띄우기 — 셋 중 하나
+### 2. Supabase 띄우기 — 둘 중 하나
 
-**A. 로컬 Supabase (권장, Auth까지 로컬에서 동작)**
+**A. 로컬 Supabase (권장, Auth와 Storage까지 로컬에서 동작)**
 ```bash
-supabase init     # 최초 1회, supabase/ 폴더 생성
-supabase start    # Postgres: localhost:54322, API/Auth: http://127.0.0.1:54321
+npx supabase init     # 최초 1회, supabase/ 폴더가 없을 때만
+npx supabase start    # Postgres: localhost:54322, API/Auth: http://127.0.0.1:54321, Studio: http://127.0.0.1:54323
+npx supabase stop     # 끝날 때, 데이터는 남는다
 ```
-`.env.example` 기본값이 이 구성에 맞춰져 있다. `supabase status`로 JWT secret을 확인할 수 있는데, 로컬 Supabase가 HS256을 쓰면 그 값을 `SUPABASE_JWT_SECRET`에 넣는다.
+서버는 DB와 Auth를 모두 Supabase에 의존하므로, 개발 중에는 Supabase를 켜 둔다. PC를 재부팅했거나 Docker가 꺼졌다면 다시 `start`한다.
 
-**B. Postgres만 (Auth 불필요한 개발)**
-```bash
-docker compose up -d
-```
+`.env.example` 기본값이 이 구성에 맞춰져 있다. 로컬 Supabase는 ES256으로 토큰에 서명하므로 `SUPABASE_JWT_SECRET`은 비워 둔다. 키는 `npx supabase status`로 확인한다.
 
-**C. 원격 Supabase 프로젝트에 직접 연결**
+**B. 원격 Supabase 프로젝트에 직접 연결**
 대시보드 → Project Settings → Database → Connection string에서 JDBC 주소를 가져와 `.env`의 `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `SUPABASE_URL`을 바꾼다.
 - Direct connection 또는 Session pooler(5432)를 쓴다. Transaction pooler(6543)는 `?prepareThreshold=0`이 필요하다.
 - 프로젝트가 레거시 JWT secret을 쓰면 Project Settings → API에서 값을 복사해 `SUPABASE_JWT_SECRET`에 넣는다. 새 JWT Signing Keys(비대칭)를 쓰면 비워 둔다.
@@ -67,11 +65,12 @@ IntelliJ에서는 `ServerApplication.kt`의 ▶ 버튼으로 실행한다(작업
 - 로그인·회원가입·토큰 발급은 **Supabase Auth**가 담당한다. 서버는 `Authorization: Bearer <access_token>`의 JWT를 검증만 한다.
 - 검증 방식: `SUPABASE_JWT_SECRET`이 있으면 HS256, 없으면 `{SUPABASE_URL}/auth/v1/.well-known/jwks.json` 공개키(ES256/RS256). `aud = authenticated`도 확인한다.
 - Controller에서는 `BaseController.getUserId()`로 사용자 ID(UUID, = `auth.users.id`)를 꺼낸다.
-- 인증 없이 열려 있는 경로: `/actuator/health`, Swagger. 나머지는 모두 인증 필요 (`security/SecurityConfig.kt`).
+- 인증 없이 열려 있는 경로: `/actuator/health`, Swagger. `/api/v1/teacher/**`는 `ROLE_TEACHER`가 필요하고, 나머지는 모두 인증 필요 (`security/SecurityConfig.kt`).
+- `ROLE_TEACHER`는 JWT의 `app_metadata.role`이 `teacher`일 때만 부여한다 (`security/SupabaseJwtAuthenticationConverter.kt`).
 
 ## DB 마이그레이션
 
-- Flyway가 스키마의 기준이다. `src/main/resources/db/migration/V{버전}__{설명}.sql`로 추가한다.
+- Flyway가 스키마의 기준이다. `src/main/resources/db/migration/V{major}.{minor}.{patch}__{설명}.sql`로 추가한다. 첫 버전은 `1.0.0`이고 이후 `1.0.1`처럼 올린다.
 - 이미 적용된 파일은 수정하지 않는다. `ddl-auto`는 `validate`.
 - Supabase 대시보드나 `supabase migration`으로 같은 테이블을 따로 만들지 않는다(두 군데서 스키마를 관리하지 않는다).
 
