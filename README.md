@@ -62,6 +62,16 @@ IntelliJ에서는 `ServerApplication.kt`의 ▶ 버튼으로 실행한다(작업
 
 Supabase 주소는 `npx supabase start`를 실행해야 열린다. 값이 다르면 `npx supabase status`로 확인한다.
 
+### 종료
+
+| 대상 | 방법 |
+|---|---|
+| 서버 | 실행한 터미널에서 `Ctrl+C`, IntelliJ는 정지 버튼 |
+| API 테스터 | 실행한 터미널에서 `Ctrl+C` |
+| Supabase | `npx supabase stop` |
+
+`npx supabase stop`은 컨테이너만 멈추며 데이터와 계정은 남는다. 다음에 `npx supabase start`로 이어서 쓴다. 로컬 데이터를 지우고 마이그레이션을 다시 적용하려면 `npx supabase db reset`을 쓴다.
+
 ## API 테스터
 
 프론트 없이 브라우저에서 API를 눌러 보는 로컬 전용 화면이다. 교사와 학생으로 동시에 로그인해 한 화면에서 번갈아 테스트하고, 오른쪽에서 요청과 응답 JSON을 확인한다. 서버와 함께 켜지지 않으므로 따로 실행한다.
