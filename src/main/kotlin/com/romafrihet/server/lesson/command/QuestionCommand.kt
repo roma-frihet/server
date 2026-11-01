@@ -31,6 +31,8 @@ class QuestionCommand private constructor() {
 
     data class Delete(val userId: UUID, val questionId: Long)
 
+    data class StudentQuery(val userId: UUID, val classroomId: Long, val lessonNumber: Int)
+
     data class UploadImage(val userId: UUID, val bytes: ByteArray) {
         override fun equals(other: Any?): Boolean =
             this === other || (other is UploadImage && userId == other.userId && bytes.contentEquals(other.bytes))

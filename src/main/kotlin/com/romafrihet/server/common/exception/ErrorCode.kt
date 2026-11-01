@@ -12,6 +12,7 @@ import org.springframework.http.HttpStatus
  * | CL | 반/학생 합류 |
  * | CO | 수업 |
  * | LS | 차시/문제 |
+ * | SP | 학생 가입 정보 |
  * | ST | 파일 저장소 |
  */
 enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: String) {
@@ -29,7 +30,10 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
 
     // Classroom
     CLASSROOM_NAME_DUPLICATED(HttpStatus.CONFLICT, "CL001", "같은 이름의 반이 이미 있습니다."),
+    JOIN_CODE_INVALID(HttpStatus.BAD_REQUEST, "CL002", "합류 코드가 없거나 만료되었습니다."),
+    MEMBERSHIP_ALREADY_REQUESTED(HttpStatus.CONFLICT, "CL003", "이미 합류했거나 승인을 기다리는 반입니다."),
     MEMBERSHIP_NOT_PENDING(HttpStatus.CONFLICT, "CL004", "승인 대기 중인 요청이 아닙니다."),
+    JOIN_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "CL005", "시간이 지난 합류 코드입니다."),
     CLASSROOM_HAS_RECORDS(HttpStatus.CONFLICT, "CL006", "학생이나 차시 기록이 있는 반은 삭제할 수 없습니다."),
 
     // Course
@@ -46,6 +50,13 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     QUESTION_IMAGE_NOT_USABLE(HttpStatus.BAD_REQUEST, "LS007", "사용할 수 없는 이미지입니다."),
     QUESTION_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "LS008", "PNG, JPEG, WebP 이미지만 올릴 수 있습니다."),
     LESSON_FINISHED(HttpStatus.CONFLICT, "LS009", "마감한 차시입니다."),
+    SUBMISSION_ALREADY_EXISTS(HttpStatus.CONFLICT, "LS010", "이미 제출한 차시입니다."),
+    SUBMISSION_ANSWER_INVALID(HttpStatus.BAD_REQUEST, "LS011", "이 차시의 문제나 보기가 아닌 답안입니다."),
+
+    // Student profile
+    STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),
+    STUDENT_NUMBER_DUPLICATED(HttpStatus.CONFLICT, "SP002", "이미 가입한 학번입니다."),
+    STUDENT_PROFILE_REQUIRED(HttpStatus.CONFLICT, "SP003", "학생 가입 정보를 먼저 저장해 주세요."),
 
     // Storage
     STORAGE_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "ST001", "파일 저장소를 사용할 수 없습니다."),

@@ -1,6 +1,7 @@
 package com.romafrihet.server.lesson.dto
 
 import com.romafrihet.server.lesson.LessonStatus
+import java.time.LocalDateTime
 
 data class LessonDto(
     val lessonNumber: Int,
@@ -18,4 +19,11 @@ data class ClassroomLessonStatusDto(
     val currentLessonNumber: Int?,
     val latestLessonNumber: Int?,
     val isOpen: Boolean,
+)
+
+data class OpenedLessonDto(
+    val lessonNumber: Int,
+    val title: String,
+    val openedAt: LocalDateTime,
+    val status: LessonStatus,
 )

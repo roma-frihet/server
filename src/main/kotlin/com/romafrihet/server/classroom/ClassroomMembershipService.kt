@@ -4,15 +4,44 @@ import com.romafrihet.server.classroom.command.ClassroomMembershipCommand
 import com.romafrihet.server.classroom.dto.ClassroomMembershipDto
 import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
+import com.romafrihet.server.common.exception.assertCheck
+import com.romafrihet.server.student.StudentProfileRepository
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.LocalDateTime
+import java.util.UUID
 
 @Service
 @Transactional(readOnly = true)
 class ClassroomMembershipService(
     private val classroomRepository: ClassroomRepository,
     private val classroomMembershipRepository: ClassroomMembershipRepository,
+    private val studentProfileRepository: StudentProfileRepository,
 ) {
+    @Transactional
+    fun join(command: ClassroomMembershipCommand.Join): ClassroomMembershipDto {
+        val profile =
+            studentProfileRepository.findByUserId(command.userId)
+                ?: throw BusinessException(ErrorCode.STUDENT_PROFILE_REQUIRED)
+        val classroom =
+            classroomRepository.findByJoinCode(command.joinCode)
+                ?: throw BusinessException(ErrorCode.JOIN_CODE_INVALID)
+        assertCheck(classroom.isJoinCodeActive(LocalDateTime.now())) { ErrorCode.JOIN_CODE_EXPIRED }
+
+        val classroomId = requireNotNull(classroom.id)
+        val request =
+            ClassroomMembershipCommand.Create(
+                userId = command.userId,
+                studentName = profile.name,
+                studentNumber = profile.studentNumber(),
+            )
+        val existing = classroomMembershipRepository.findByClassroomIdAndUserId(classroomId, command.userId)
+        val membership =
+            existing?.apply { reapply(request) }
+                ?: classroomMembershipRepository.save(ClassroomMembership.create(classroom, request))
+        return toDto(membership)
+    }
+
     fun findAllForTeacher(command: ClassroomMembershipCommand.Query): List<ClassroomMembershipDto> {
         val classroom = classroomRepository.getOwned(command.classroomId, command.userId)
         val classroomId = requireNotNull(classroom.id)
@@ -22,6 +51,9 @@ class ClassroomMembershipService(
             } ?: classroomMembershipRepository.findAllByClassroomIdOrderByIdAsc(classroomId)
         return memberships.map(::toDto)
     }
+
+    fun findAllForStudent(userId: UUID): List<ClassroomMembershipDto> =
+        classroomMembershipRepository.findAllByUserIdOrderByIdAsc(userId).map(::toDto)
 
     @Transactional
     fun approve(command: ClassroomMembershipCommand.Decide): ClassroomMembershipDto {
