@@ -1,10 +1,14 @@
 package com.romafrihet.server.classroom
 
 import com.romafrihet.server.classroom.projection.ClassroomStudentCountProjection
+import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
+import java.util.UUID
 
 interface ClassroomMembershipRepository : JpaRepository<ClassroomMembership, Long> {
+    fun findByClassroomIdAndUserId(classroomId: Long, userId: UUID): ClassroomMembership?
+
     fun findByIdAndClassroomId(id: Long, classroomId: Long): ClassroomMembership?
 
     fun findAllByClassroomIdOrderByIdAsc(classroomId: Long): List<ClassroomMembership>
@@ -13,6 +17,11 @@ interface ClassroomMembershipRepository : JpaRepository<ClassroomMembership, Lon
         classroomId: Long,
         status: MembershipStatus,
     ): List<ClassroomMembership>
+
+    @EntityGraph(attributePaths = ["classroom.course"])
+    fun findAllByUserIdOrderByIdAsc(userId: UUID): List<ClassroomMembership>
+
+    fun existsByClassroomIdAndUserIdAndStatus(classroomId: Long, userId: UUID, status: MembershipStatus): Boolean
 
     fun existsByClassroomId(classroomId: Long): Boolean
 
