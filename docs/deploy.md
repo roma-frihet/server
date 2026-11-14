@@ -4,12 +4,13 @@ GitHub Actions로 빌드하고 GCP Cloud Run에 배포한다. DB와 Auth는 Supa
 
 | 워크플로 | 실행 시점 | 하는 일 |
 |---|---|---|
-| `ci.yml` | PR, `main`/`develop`/`production` push | `./gradlew check` |
+| `ci.yml` | PR, `develop`/`release/**`/`production` push | `./gradlew check` |
 | `deploy.yml` | Actions 탭 → Deploy → **Run workflow** | `check` → 이미지 빌드 → Artifact Registry 푸시 → Cloud Run 배포 → 헬스 체크 |
 
-- `workflow_dispatch` 워크플로는 기본 브랜치(`main`)에 파일이 있어야 Run workflow 버튼이 보인다. 실행할 때는 브랜치를 `production`으로 고른다.
+- `workflow_dispatch` 워크플로는 기본 브랜치(`develop`)에 파일이 있어야 Run workflow 버튼이 보인다. 실행할 때는 브랜치를 `production`으로 고른다.
 - production 환경은 `production` 브랜치에서만 배포되고, GitHub Environment 승인을 받아야 진행된다.
 - CLI로 실행: `gh workflow run deploy.yml --ref production -f environment=production`
+- 릴리즈 순서: `develop`에서 `release/x.y.z`를 만들고 → `production`에 PR로 병합 → Deploy를 `production` 브랜치, `production` 환경으로 실행 → 승인
 
 ## 환경 구성
 
