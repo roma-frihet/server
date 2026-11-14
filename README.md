@@ -147,6 +147,19 @@ python3 tools/api-tester/serve.py # 3. 테스터
 - Flyway가 스키마의 기준이다. `src/main/resources/db/migration/V{major}.{minor}.{patch}__{설명}.sql`로 추가한다. 첫 버전은 `1.0.0`이고 이후 `1.0.1`처럼 올린다.
 - 이미 적용된 파일은 수정하지 않는다. `ddl-auto`는 `validate`.
 - Supabase 대시보드나 `supabase migration`으로 같은 테이블을 따로 만들지 않는다(두 군데서 스키마를 관리하지 않는다).
+- 마이그레이션은 배포된 서버가 기동할 때 production DB에 적용되고 되돌아가지 않는다.
+
+## 배포
+
+GitHub Actions로 GCP Cloud Run(`server-prod`)에 배포한다. DB와 Auth는 production Supabase 프로젝트다.
+
+```
+feature/* ──PR──▶ develop ──▶ release/x.y.z ──PR──▶ production ──▶ Deploy 실행 + 승인
+```
+
+- 작업 브랜치는 `develop`(기본 브랜치)에서 만들고 `develop`에 병합한다. `main`은 쓰지 않는다.
+- `production`에 병합해도 자동 배포되지 않는다. Actions → **Deploy** → Run workflow에서 브랜치를 **`production`**으로 골라 실행하고 승인한다.
+- 릴리즈 절차, 롤백, 문제 해결, 최초 인프라 설정은 [docs/deploy.md](docs/deploy.md)를 본다.
 
 ## 패키지 구조
 

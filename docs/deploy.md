@@ -7,10 +7,99 @@ GitHub Actions로 빌드하고 GCP Cloud Run에 배포한다. DB와 Auth는 Supa
 | `ci.yml` | PR, `develop`/`release/**`/`production` push | `./gradlew check` |
 | `deploy.yml` | Actions 탭 → Deploy → **Run workflow** | `check` → 이미지 빌드 → Artifact Registry 푸시 → Cloud Run 배포 → 헬스 체크 |
 
-- `workflow_dispatch` 워크플로는 기본 브랜치(`develop`)에 파일이 있어야 Run workflow 버튼이 보인다. 실행할 때는 브랜치를 `production`으로 고른다.
-- production 환경은 `production` 브랜치에서만 배포되고, GitHub Environment 승인을 받아야 진행된다.
-- CLI로 실행: `gh workflow run deploy.yml --ref production -f environment=production`
-- 릴리즈 순서: `develop`에서 `release/x.y.z`를 만들고 → `production`에 PR로 병합 → Deploy를 `production` 브랜치, `production` 환경으로 실행 → 승인
+## 브랜치 흐름
+
+```
+feature/* ──PR──▶ develop ──▶ release/x.y.z ──PR──▶ production ──▶ Deploy 실행 + 승인
+                  (기본 브랜치)
+```
+
+- 작업은 `develop`에서 `{type}/{설명}` 브랜치를 만들어 `develop`에 PR로 병합한다.
+- production 환경에는 `production` 브랜치만 배포할 수 있다. 다른 브랜치로 실행하면 GitHub가 거부한다.
+- `production`에 병합해도 자동 배포되지 않는다. 배포는 항상 Deploy 워크플로를 직접 실행하고 승인해야 진행된다.
+- `main`은 쓰지 않는다.
+
+## 릴리즈 절차
+
+### 1. 릴리즈 브랜치 만들기
+
+```bash
+git switch develop && git pull
+git switch -c release/1.0.0
+git push -u origin release/1.0.0
+```
+
+릴리즈 브랜치에서는 버그 수정만 한다. 새 기능은 `develop`으로 보낸다.
+
+### 2. production에 병합
+
+GitHub에서 `release/1.0.0` → `production` PR을 만들고, CI가 통과하면 병합한다.
+
+```bash
+gh pr create --base production --head release/1.0.0 --title "release: 1.0.0"
+```
+
+릴리즈 브랜치에서 고친 내용이 있으면 `release/1.0.0` → `develop` PR도 만들어 되돌려 넣는다.
+
+### 3. Deploy 실행
+
+Actions 탭 → **Deploy** → **Run workflow**
+
+| 항목 | 값 |
+|---|---|
+| Use workflow from | **`production`** (기본값이 `develop`이므로 꼭 바꾼다) |
+| 배포 환경 | `production` |
+
+CLI로는 `gh workflow run deploy.yml --ref production -f environment=production`이다.
+
+### 4. 승인
+
+실행 화면 위쪽의 **Review deployments** → `production` 체크 → **Approve and deploy**. 승인자는 Settings → Environments → `production` → Required reviewers에서 관리한다.
+
+### 5. 확인
+
+- 워크플로의 마지막 단계(헬스 체크)가 통과하면 배포가 끝난 것이다. 5~8분 걸린다.
+- 서비스 주소는 실행 요약의 `production` 링크나 Cloud Run 콘솔에서 확인한다.
+- 필요하면 `git tag v1.0.0 origin/production && git push origin v1.0.0`으로 태그를 남긴다.
+
+## 긴급 수정 (hotfix)
+
+`develop`에 아직 내보내지 않을 코드가 있을 때는 `production`에서 바로 브랜치를 만든다.
+
+1. `production`에서 `hotfix/1.0.1`을 만들어 수정한다.
+2. `hotfix/1.0.1` → `production` PR을 병합하고 3~5단계대로 배포한다.
+3. `hotfix/1.0.1` → `develop` PR도 병합해 수정이 빠지지 않게 한다.
+
+## 롤백
+
+Cloud Run은 이전 리비전을 남겨 두므로 트래픽만 되돌리면 된다. 콘솔에서는 Cloud Run → `server-prod` → **리비전** → **트래픽 관리**에서 이전 리비전에 100%를 준다.
+
+```bash
+gcloud run revisions list --service server-prod --region asia-northeast3
+gcloud run services update-traffic server-prod --region asia-northeast3 --to-revisions <이전 리비전>=100
+```
+
+Flyway 마이그레이션은 되돌아가지 않는다. 이전 리비전은 새 스키마 위에서 뜨므로, 테이블이나 컬럼 추가만 있었다면 괜찮지만 이름 변경이나 삭제가 있었다면 이전 코드가 기동하지 못한다(`ddl-auto: validate`). 이때는 롤백 대신 수정 릴리즈를 낸다.
+
+롤백한 뒤 다음 배포를 하면 새 리비전에 트래픽이 다시 100% 간다.
+
+## 문제 해결
+
+| 증상 | 원인과 조치 |
+|---|---|
+| Run workflow 버튼이 없다 | `deploy.yml`이 기본 브랜치(`develop`)에 없다 |
+| 실행 직후 "Branch is not allowed to deploy" | 브랜치를 `production`이 아닌 것으로 골랐다. Use workflow from을 `production`으로 바꾼다 |
+| `Waiting`에서 멈춰 있다 | 승인 대기 상태다. Review deployments에서 승인한다 |
+| GCP 인증 단계 실패 | Environment 변수 `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_DEPLOYER_SERVICE_ACCOUNT` 오타이거나 Workload Identity 바인딩이 빠졌다 (아래 1번) |
+| Cloud Run 배포 단계에서 리비전이 준비되지 않는다 | 앱이 기동하지 못했다. Cloud Run → `server-prod` → 로그에서 Flyway나 DB 연결 오류를 확인한다 |
+| DB 연결 시간 초과 | `DB_URL`이 Direct connection(`db.<ref>.supabase.co`)이다. Session pooler 주소로 바꾼다 (아래 2번) |
+| 로그에 `Found non-empty schema(s) "public" but no schema history table` | Supabase가 `public`에 만든 객체(automatic RLS의 `rls_auto_enable` 함수 등) 때문이다. `application.yml`의 `baseline-on-migrate: true`, `baseline-version: 0`으로 처리한다. `baseline-version`을 빼면 기본값 1이 되어 `V1.0.0`을 건너뛰므로 지우지 않는다 |
+| 앱 로그 보기 | Cloud Shell에서 `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="server-prod"' --freshness 1h --limit 200 --order asc --format 'value(textPayload)'` |
+| 헬스 체크만 실패 | 콜드스타트가 길었을 수 있다. 서비스 주소의 `/actuator/health`를 직접 열어 본다 |
+
+## 최초 설정
+
+아래 1~3은 환경을 처음 만들 때 한 번만 한다.
 
 ## 환경 구성
 
