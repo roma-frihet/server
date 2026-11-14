@@ -57,7 +57,8 @@ com.romafrihet.server
 
 - 커밋 메시지는 `{type}: {한국어 요약}`이고, type은 `feat`, `fix`, `refactor`, `test`, `docs`, `chore`입니다.
 - 커밋 하나에는 목적 하나만 담습니다.
-- 브랜치는 `main`에서 `{type}/{kebab-case 설명}`으로 만듭니다.
+- 작업 브랜치는 기본 브랜치인 `develop`에서 `{type}/{kebab-case 설명}`으로 만들고 `develop`에 PR로 병합합니다.
+- 릴리즈는 `develop`에서 `release/{x.y.z}`를 만들어 `production`에 PR로 병합한 뒤, Actions의 Deploy를 `production` 브랜치로 실행합니다. `main`은 쓰지 않습니다.
 - 사용자가 요청하기 전에는 커밋하거나 푸시하지 않습니다.
 
 ## Kotlin
