@@ -33,10 +33,10 @@ th{color:var(--muted);font-weight:500}
 .muted{color:var(--muted);font-size:12px}
 .code-big{font:700 28px ui-monospace,Consolas,monospace;letter-spacing:4px}
 .badge{font-size:12px;padding:1px 8px;border-radius:999px;background:#eef1f5}
-.OPEN,.APPROVED,.NORMAL{background:#e3f6ee;color:var(--ok)}
-.CLOSED,.PENDING{background:#fff4df;color:#935f00}
+.OPEN,.NORMAL{background:#e3f6ee;color:var(--ok)}
+.CLOSED{background:#fff4df;color:#935f00}
 .FINISHED{background:#ebe9fe;color:#4a3fb5}
-.REJECTED,.SCORE_DROPPED{background:#fdeee9;color:var(--bad)}
+.SCORE_DROPPED{background:#fdeee9;color:var(--bad)}
 .q{border:1px solid var(--line);border-radius:8px;padding:10px;margin-bottom:8px}
 .q img,.opt img{max-height:90px;display:block;margin:4px 0;border-radius:4px}
 .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:10px}
@@ -161,7 +161,7 @@ const guard=fn=>async(...a)=>{try{return await fn(...a)}catch(e){if(!e.data)log(
 function need(value,msg){if(value==null||value===''){log('확인','',null,0,msg);throw new Error(msg)}return value}
 const courseId=()=>need(S.courseId,'수업을 먼저 선택하세요.');
 const classroomId=()=>need(S.classroomId,'반을 먼저 선택하세요.');
-const badge=s=>`<span class="badge ${esc(s)}">${esc({PLANNED:'예정',OPEN:'열림',CLOSED:'닫힘',FINISHED:'마감',PENDING:'대기',APPROVED:'승인',REJECTED:'거절',NORMAL:'정상',SCORE_DROPPED:'점수 하락',NOT_RESPONDED:'미응답'}[s]||s)}</span>`;
+const badge=s=>`<span class="badge ${esc(s)}">${esc({PLANNED:'예정',OPEN:'열림',CLOSED:'닫힘',FINISHED:'마감',NORMAL:'정상',SCORE_DROPPED:'점수 하락',NOT_RESPONDED:'미응답'}[s]||s)}</span>`;
 function exp(token){try{return new Date(JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp*1000)}catch(e){return null}}
 function refresh(){
   for(const r of ['teacher','student']){
