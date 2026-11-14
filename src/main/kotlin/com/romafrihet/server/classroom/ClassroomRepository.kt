@@ -10,6 +10,8 @@ interface ClassroomRepository : JpaRepository<Classroom, Long> {
 
     fun findByIdAndCourseUserId(id: Long, userId: UUID): Classroom?
 
+    fun findByJoinCode(joinCode: String): Classroom?
+
     fun findAllByCourseUserIdOrderByNameAsc(userId: UUID): List<Classroom>
 
     fun findAllByCourseIdOrderByNameAsc(courseId: Long): List<Classroom>
