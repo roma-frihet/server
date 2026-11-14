@@ -9,8 +9,11 @@ import org.springframework.context.annotation.Import
 import org.springframework.security.oauth2.jwt.JwtDecoder
 import org.springframework.test.web.servlet.assertj.MockMvcTester
 
-@WebMvcTest(properties = ["app.security.supabase-url=http://localhost:54321"])
-@Import(SecurityConfig::class, SecurityErrorHandlers::class)
+@WebMvcTest(
+    controllers = [EmptyTestController::class],
+    properties = ["app.security.supabase-url=http://localhost:54321"],
+)
+@Import(SecurityConfig::class, SecurityErrorHandlers::class, SupabaseJwtAuthenticationConverter::class)
 class SecurityErrorResponseTest(@Autowired private val mvc: MockMvcTester) {
     @MockkBean
     private lateinit var jwtDecoder: JwtDecoder

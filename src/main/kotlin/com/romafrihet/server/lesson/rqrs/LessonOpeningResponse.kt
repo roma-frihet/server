@@ -1,0 +1,27 @@
+package com.romafrihet.server.lesson.rqrs
+
+import com.romafrihet.server.lesson.dto.ClassroomLessonStatusDto
+import io.swagger.v3.oas.annotations.media.Schema
+
+class LessonOpeningResponse private constructor() {
+    @Schema(name = "LessonOpeningResponseResult")
+    data class Result(
+        val classroomId: Long,
+        val courseId: Long,
+        val classroomName: String,
+        val currentLessonNumber: Int?,
+        val latestLessonNumber: Int?,
+        val isOpen: Boolean,
+    ) {
+        companion object {
+            fun of(dto: ClassroomLessonStatusDto) = Result(
+                classroomId = dto.classroomId,
+                courseId = dto.courseId,
+                classroomName = dto.classroomName,
+                currentLessonNumber = dto.currentLessonNumber,
+                latestLessonNumber = dto.latestLessonNumber,
+                isOpen = dto.isOpen,
+            )
+        }
+    }
+}

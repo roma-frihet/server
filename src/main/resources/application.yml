@@ -7,6 +7,11 @@ spring:
   profiles:
     default: local
 
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 6MB
+
   datasource:
     url: ${DB_URL}
     username: ${DB_USERNAME}
@@ -35,6 +40,11 @@ app:
     supabase-url: ${SUPABASE_URL}
     jwt-secret: ${SUPABASE_JWT_SECRET:}
     audience: authenticated
+  storage:
+    supabase-url: ${app.security.supabase-url}
+    service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+    bucket: question-images
+    signed-url-ttl-seconds: 600
 
 springdoc:
   swagger-ui:
