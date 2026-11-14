@@ -93,6 +93,8 @@ Flyway 마이그레이션은 되돌아가지 않는다. 이전 리비전은 새 
 | GCP 인증 단계 실패 | Environment 변수 `GCP_WORKLOAD_IDENTITY_PROVIDER`, `GCP_DEPLOYER_SERVICE_ACCOUNT` 오타이거나 Workload Identity 바인딩이 빠졌다 (아래 1번) |
 | Cloud Run 배포 단계에서 리비전이 준비되지 않는다 | 앱이 기동하지 못했다. Cloud Run → `server-prod` → 로그에서 Flyway나 DB 연결 오류를 확인한다 |
 | DB 연결 시간 초과 | `DB_URL`이 Direct connection(`db.<ref>.supabase.co`)이다. Session pooler 주소로 바꾼다 (아래 2번) |
+| 로그에 `Found non-empty schema(s) "public" but no schema history table` | Supabase가 `public`에 만든 객체(automatic RLS의 `rls_auto_enable` 함수 등) 때문이다. `application.yml`의 `baseline-on-migrate: true`, `baseline-version: 0`으로 처리한다. `baseline-version`을 빼면 기본값 1이 되어 `V1.0.0`을 건너뛰므로 지우지 않는다 |
+| 앱 로그 보기 | Cloud Shell에서 `gcloud logging read 'resource.type="cloud_run_revision" AND resource.labels.service_name="server-prod"' --freshness 1h --limit 200 --order asc --format 'value(textPayload)'` |
 | 헬스 체크만 실패 | 콜드스타트가 길었을 수 있다. 서비스 주소의 `/actuator/health`를 직접 열어 본다 |
 
 ## 최초 설정
