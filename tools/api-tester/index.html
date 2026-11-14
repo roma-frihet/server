@@ -78,12 +78,12 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
 
 <section id="course">
   <div class="card"><h2>수업</h2>
-    <div class="row"><label>학년<input id="courseGrade" type="number" value="2" style="width:64px"></label><label>과목<input id="courseSubject" value="과학"></label><button class="primary" data-act="createCourse">수업 추가</button><button data-act="loadCourses">새로고침</button></div>
+    <div class="row"><label>학년<input id="courseGrade" type="number" value="2" style="width:64px"></label><label>과목<select id="courseSubject"></select></label><button data-act="loadSubjects">과목 불러오기</button><button class="primary" data-act="createCourse">수업 추가</button><button data-act="loadCourses">새로고침</button></div>
     <div id="courses"></div></div>
   <div class="card"><h2>반</h2>
-    <div class="row"><label>반 이름<input id="classroomName" value="1반"></label><button class="primary" data-act="createClassroom">선택한 수업에 반 추가</button></div>
+    <div class="row"><label>반 번호<input id="classNo" type="number" min="1" max="20" value="1" style="width:64px"></label><button class="primary" data-act="createClassroom">선택한 수업에 반 추가</button></div>
     <div id="classrooms"></div></div>
-  <div class="card"><h2>합류 코드</h2>
+  <div class="card"><h2>참여 코드</h2>
     <div class="row"><button class="primary" data-act="issueCode">코드 발급 (3분)</button><button class="danger" data-act="closeCode">코드 끄기</button></div>
     <div class="code-big" id="joinCode">-</div><div class="muted" id="joinLeft"></div></div>
 </section>
@@ -96,6 +96,7 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
   <div class="card"><h2>문제 추가 <span class="muted" id="lessonLabel"></span></h2>
     <div class="row"><label>유형<select id="qType"><option value="MULTIPLE_CHOICE">객관식</option><option value="SHORT_ANSWER">주관식</option></select></label><label>지문 이미지<input type="file" accept="image/*" data-upload="qImage"></label></div>
     <textarea id="qContent" placeholder="문제 내용">광합성이 일어나는 곳은?</textarea>
+    <div class="row"><label>제한 시간(초)<input id="qTimeLimit" type="number" min="1" max="300" value="30" style="width:80px"></label><label style="flex:1">해설<input id="qExplanation" placeholder="선택, 비우면 저장하지 않습니다"></label></div>
     <div id="optionForm"></div>
     <div class="row" style="margin-top:8px"><button data-act="addOption">보기 추가</button><button class="primary" data-act="createQuestion">문제 저장</button></div></div>
   <div class="card"><h2>문제 목록</h2><div id="questions"></div></div>
@@ -103,10 +104,11 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
 
 <section id="member">
   <div class="card"><h2>학생: 코드 입력</h2>
-    <div class="row"><label>합류 코드<input id="codeInput" maxlength="6"></label><button class="primary" data-act="join">합류 요청</button><button data-act="myMemberships">내 반 목록</button></div>
+    <div class="row"><label>참여 코드<input id="codeInput" maxlength="6"></label><button class="primary" data-act="join">코드로 연결</button><button data-act="myMemberships">내 반 목록</button></div>
     <div id="myMemberships"></div></div>
-  <div class="card"><h2>교사: 합류 요청</h2>
-    <div class="row"><button data-act="loadMembers">선택한 반의 요청 보기</button><button class="primary" data-act="approveAll">모두 승인</button></div>
+  <div class="card"><h2>교사: 반 학생</h2>
+    <div class="row"><button data-act="loadMembers">선택한 반의 학생 보기</button></div>
+    <p class="muted">승인 절차는 없습니다. 코드를 넣으면 바로 연결됩니다. 내보내면 그 반의 기록도 함께 지워집니다.</p>
     <div id="members"></div></div>
 </section>
 
@@ -127,7 +129,7 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
 <aside><div class="row"><b>요청 기록</b><button data-act="clearLog">지우기</button></div><div id="log"></div></aside>
 </div>
 <script>
-const TABS=[['account','계정'],['course','수업·반·코드'],['lesson','차시·문제'],['member','합류·승인'],['solve','학생 풀이'],['report','대시보드·학생 관리']];
+const TABS=[['account','계정'],['course','수업·반·코드'],['lesson','차시·문제'],['member','합류'],['solve','학생 풀이'],['report','대시보드·학생 관리']];
 const $=id=>document.getElementById(id);
 const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const S={teacher:null,student:null,courseId:null,classroomId:null,lessonNumber:null,solve:null,images:{},options:[],exp:null};
@@ -185,19 +187,23 @@ const actions={
   async saveTeacher(){await call('teacher','PUT','/api/v1/teacher/profile',{schoolId:+need($('schoolSelect').value,'학교를 먼저 검색하세요.'),name:$('teacherName').value})},
   async saveStudent(){await call('student','POST','/api/v1/student-profiles',{schoolId:+need($('schoolSelect').value,'학교를 먼저 검색하세요.'),grade:+$('grade').value,classNumber:+$('classNumber').value,seatNumber:+$('seatNumber').value,name:$('studentName').value})},
   async myProfile(){await call('student','GET','/api/v1/student-profiles/me')},
-  async createCourse(){const d=await call('teacher','POST','/api/v1/teacher/courses',{schoolId:+need($('schoolSelect').value,'계정 탭에서 학교를 먼저 검색하세요.'),grade:+$('courseGrade').value,subject:$('courseSubject').value});S.courseId=d.id;await actions.loadCourses()},
+  async loadSubjects(){
+    const d=await call('teacher','GET','/api/v1/teacher/subjects?schoolLevel=MIDDLE');
+    $('courseSubject').innerHTML=d.map(s=>`<option value="${s.id}">${esc(s.subjectGroup)} · ${esc(s.name)}</option>`).join('');
+  },
+  async createCourse(){const d=await call('teacher','POST','/api/v1/teacher/courses',{schoolId:+need($('schoolSelect').value,'계정 탭에서 학교를 먼저 검색하세요.'),grade:+$('courseGrade').value,subjectId:+need($('courseSubject').value,'과목을 먼저 불러오세요.')});S.courseId=d.id;await actions.loadCourses()},
   async loadCourses(){
     const d=await call('teacher','GET','/api/v1/teacher/courses');
-    $('courses').innerHTML=`<table><tr><th></th><th>수업</th><th>학교</th><th></th></tr>${d.map(c=>`<tr><td><input type="radio" name="course" data-act="pickCourse" data-id="${c.id}" ${c.id===S.courseId?'checked':''}></td><td>${c.grade}학년 ${esc(c.subject)} (#${c.id})</td><td>${esc(c.schoolName)}</td><td><button class="danger" data-act="deleteCourse" data-id="${c.id}">삭제</button></td></tr>`).join('')}</table>`;
+    $('courses').innerHTML=`<table><tr><th></th><th>수업</th><th>학교</th><th></th></tr>${d.map(c=>`<tr><td><input type="radio" name="course" data-act="pickCourse" data-id="${c.id}" ${c.id===S.courseId?'checked':''}></td><td>${c.grade}학년 ${esc(c.subjectName)} (#${c.id})</td><td>${esc(c.schoolName)}</td><td><button class="danger" data-act="deleteCourse" data-id="${c.id}">삭제</button></td></tr>`).join('')}</table>`;
     await actions.loadClassrooms();refresh();
   },
   async pickCourse(el){S.courseId=+el.dataset.id;S.lessonNumber=null;await actions.loadClassrooms();await actions.loadLessons();refresh()},
   async deleteCourse(el){await call('teacher','DELETE','/api/v1/teacher/courses/'+el.dataset.id);if(S.courseId===+el.dataset.id)S.courseId=null;await actions.loadCourses()},
-  async createClassroom(){const d=await call('teacher','POST','/api/v1/teacher/classrooms',{courseId:courseId(),name:$('classroomName').value});S.classroomId=d.id;await actions.loadClassrooms()},
+  async createClassroom(){const d=await call('teacher','POST','/api/v1/teacher/classrooms',{courseId:courseId(),classNo:+$('classNo').value});S.classroomId=d.id;await actions.loadClassrooms()},
   async loadClassrooms(){
     const d=await call('teacher','GET','/api/v1/teacher/classrooms');
     const list=d.filter(c=>!S.courseId||c.courseId===S.courseId);
-    $('classrooms').innerHTML=`<table><tr><th></th><th>반</th><th>연결 학생</th><th>코드</th><th></th></tr>${list.map(c=>`<tr><td><input type="radio" name="classroom" data-act="pickClassroom" data-id="${c.id}" ${c.id===S.classroomId?'checked':''}></td><td>${esc(c.name)} (#${c.id})</td><td>${c.studentCount}명</td><td>${esc(c.joinCode??'-')}</td><td><button class="danger" data-act="deleteClassroom" data-id="${c.id}">삭제</button></td></tr>`).join('')}</table>`;
+    $('classrooms').innerHTML=`<table><tr><th></th><th>반</th><th>연결 학생</th><th>코드</th><th></th></tr>${list.map(c=>`<tr><td><input type="radio" name="classroom" data-act="pickClassroom" data-id="${c.id}" ${c.id===S.classroomId?'checked':''}></td><td>${c.grade}학년 ${esc(c.subjectName)} ${c.classNo}반 (#${c.id})</td><td>${c.studentCount}명</td><td>${esc(c.joinCode??'-')}</td><td><button class="danger" data-act="deleteClassroom" data-id="${c.id}">삭제</button></td></tr>`).join('')}</table>`;
     refresh();
   },
   async pickClassroom(el){S.classroomId=+el.dataset.id;refresh();if(S.teacher&&S.courseId)await actions.loadLessons()},
@@ -207,7 +213,7 @@ const actions={
   async createLesson(){const d=await call('teacher','POST',`/api/v1/teacher/courses/${courseId()}/lessons`,{title:$('lessonTitle').value});S.lessonNumber=d.lessonNumber;await actions.loadLessons()},
   async loadLessons(){
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/lessons`);
-    $('lessons').innerHTML=`<table><tr><th></th><th>차시</th><th>문제</th><th>반별 상태</th><th>선택한 반 동작</th></tr>${d.map(l=>`<tr><td><input type="radio" name="lesson" data-act="pickLesson" data-id="${l.lessonNumber}" ${l.lessonNumber===S.lessonNumber?'checked':''}></td><td>${l.lessonNumber}. ${esc(l.title)} <button data-act="renameLesson" data-id="${l.lessonNumber}">이름 수정</button></td><td>${l.questionCount}</td><td>${l.classrooms.map(c=>esc(c.classroomName)+' '+badge(c.status)).join(' ')||'-'}</td><td>${['open:열기','close:닫기','finish:마감'].map(x=>{const[a,t]=x.split(':');return `<button data-act="lessonState" data-state="${a}" data-id="${l.lessonNumber}" ${a==='finish'?'class="danger"':''}>${t}</button>`}).join(' ')}</td></tr>`).join('')}</table>`;
+    $('lessons').innerHTML=`<table><tr><th></th><th>차시</th><th>문제</th><th>반별 상태</th><th>선택한 반 동작</th></tr>${d.map(l=>`<tr><td><input type="radio" name="lesson" data-act="pickLesson" data-id="${l.lessonNumber}" ${l.lessonNumber===S.lessonNumber?'checked':''}></td><td>${l.lessonNumber}. ${esc(l.title)} <button data-act="renameLesson" data-id="${l.lessonNumber}">이름 수정</button></td><td>${l.questionCount}</td><td>${l.classrooms.map(c=>c.classNo+'반 '+badge(c.status)).join(' ')||'-'}</td><td>${['open:열기','close:닫기','finish:마감'].map(x=>{const[a,t]=x.split(':');return `<button data-act="lessonState" data-state="${a}" data-id="${l.lessonNumber}" ${a==='finish'?'class="danger"':''}>${t}</button>`}).join(' ')}</td></tr>`).join('')}</table>`;
     refresh();if(S.lessonNumber)await actions.loadQuestions();
   },
   async pickLesson(el){S.lessonNumber=+el.dataset.id;refresh();await actions.loadQuestions()},
@@ -218,20 +224,19 @@ const actions={
     const n=need(S.lessonNumber,'차시를 먼저 선택하세요.');const type=$('qType').value;let options;
     if(type==='SHORT_ANSWER')options=$('shortAnswers').value.split(',').map(s=>s.trim()).filter(Boolean).map(content=>({content,imageId:null,isCorrect:true}));
     else{const c=document.querySelector('input[name=correct]:checked')?.value;options=S.options.map((o,i)=>({content:o.text||null,imageId:S.images['opt'+i]||null,isCorrect:String(i)===c}))}
-    await call('teacher','POST',`/api/v1/teacher/courses/${courseId()}/lessons/${n}/questions`,{type,content:$('qContent').value||null,imageId:S.images.qImage||null,options});
+    await call('teacher','POST',`/api/v1/teacher/courses/${courseId()}/lessons/${n}/questions`,{type,content:$('qContent').value||null,imageId:S.images.qImage||null,timeLimitSec:+$('qTimeLimit').value,explanation:$('qExplanation').value||null,options});
     resetOptions();document.querySelectorAll('[data-upload]').forEach(i=>i.value='');await actions.loadLessons();
   },
   async loadQuestions(){
     if(!S.lessonNumber)return;
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/lessons/${S.lessonNumber}/questions`);
-    $('questions').innerHTML=d.map(q=>`<div class="q"><b>#${q.id}</b> ${esc(q.content??'')} ${q.imageUrl?`<img src="${esc(q.imageUrl)}" alt="지문 이미지">`:''}<ul>${q.options.map(o=>`<li class="opt">${o.isCorrect?'✔ ':''}${esc(o.content??'')}${o.imageUrl?`<img src="${esc(o.imageUrl)}" alt="보기 이미지">`:''}</li>`).join('')}</ul><button class="danger" data-act="deleteQuestion" data-id="${q.id}">삭제</button></div>`).join('')||'<p class="muted">문제가 없습니다.</p>';
+    $('questions').innerHTML=d.map(q=>`<div class="q"><b>#${q.displayOrder+1}</b> ${esc(q.content??'')} <span class="muted">${q.timeLimitSec}초</span> ${q.imageUrl?`<img src="${esc(q.imageUrl)}" alt="지문 이미지">`:''}<ul>${q.options.map(o=>`<li class="opt">${o.isCorrect?'✔ ':''}${esc(o.content??'')}${o.imageUrl?`<img src="${esc(o.imageUrl)}" alt="보기 이미지">`:''}</li>`).join('')}</ul>${q.explanation?`<p class="muted">해설: ${esc(q.explanation)}</p>`:''}<button class="danger" data-act="deleteQuestion" data-id="${q.id}">삭제</button></div>`).join('')||'<p class="muted">문제가 없습니다.</p>';
   },
   async deleteQuestion(el){await call('teacher','DELETE','/api/v1/teacher/questions/'+el.dataset.id);await actions.loadLessons()},
   async join(){await call('student','POST','/api/v1/classroom-memberships',{joinCode:$('codeInput').value});await actions.myMemberships()},
-  async myMemberships(){const d=await call('student','GET','/api/v1/classroom-memberships');$('myMemberships').innerHTML=`<table><tr><th>수업</th><th>반</th><th>이름</th><th>학번</th><th>상태</th></tr>${d.map(m=>`<tr><td>${m.grade}학년 ${esc(m.subject)}</td><td>${esc(m.classroomName)} (#${m.classroomId})</td><td>${esc(m.studentName)}</td><td>${esc(m.studentNumber)}</td><td>${badge(m.status)}</td></tr>`).join('')}</table>`},
-  async loadMembers(){const k=classroomId();const d=await call('teacher','GET',`/api/v1/teacher/classrooms/${k}/memberships`);$('members').innerHTML=`<table><tr><th>이름</th><th>학번</th><th>상태</th><th></th></tr>${d.map(m=>`<tr><td>${esc(m.studentName)}</td><td>${esc(m.studentNumber)}</td><td>${badge(m.status)}</td><td><button data-act="decide" data-state="approve" data-id="${m.id}">승인</button> <button class="danger" data-act="decide" data-state="reject" data-id="${m.id}">거절</button></td></tr>`).join('')}</table>`},
-  async decide(el){await call('teacher','POST',`/api/v1/teacher/classrooms/${classroomId()}/memberships/${el.dataset.id}/${el.dataset.state}`);await actions.loadMembers()},
-  async approveAll(){await call('teacher','POST',`/api/v1/teacher/classrooms/${classroomId()}/memberships/approve-all`);await actions.loadMembers()},
+  async myMemberships(){const d=await call('student','GET','/api/v1/classroom-memberships');$('myMemberships').innerHTML=`<table><tr><th>수업</th><th>반</th><th>이름</th><th>학번</th><th>연결</th></tr>${d.map(m=>`<tr><td>${m.grade}학년 ${esc(m.subjectName)}</td><td>${m.classNo}반 (#${m.classroomId})</td><td>${esc(m.studentName)}</td><td>${esc(m.studentNumber)}</td><td>${esc(m.joinedAt)}</td></tr>`).join('')}</table>`},
+  async loadMembers(){const k=classroomId();const d=await call('teacher','GET',`/api/v1/teacher/classrooms/${k}/memberships`);$('members').innerHTML=`<table><tr><th>이름</th><th>학번</th><th>연결</th><th></th></tr>${d.map(m=>`<tr><td>${esc(m.studentName)}</td><td>${esc(m.studentNumber)}</td><td>${esc(m.joinedAt)}</td><td><button class="danger" data-act="removeStudent" data-id="${m.id}">내보내기</button></td></tr>`).join('')}</table>`},
+  async removeStudent(el){await call('teacher','DELETE',`/api/v1/teacher/classrooms/${classroomId()}/memberships/${el.dataset.id}`);await actions.loadMembers();await actions.loadClassrooms()},
   async studentLessons(){const k=classroomId();const d=await call('student','GET',`/api/v1/classrooms/${k}/lessons`);$('studentLessons').innerHTML=d.length?`<table><tr><th>차시</th><th>상태</th><th></th></tr>${d.map(l=>`<tr><td>${l.lessonNumber}. ${esc(l.title)}</td><td>${badge(l.status)}</td><td><button class="primary" data-act="${l.status==='OPEN'?'startSolve':'showResult'}" data-id="${l.lessonNumber}">${l.status==='OPEN'?'문제 풀기':'결과 보기'}</button></td></tr>`).join('')}</table>`:'<p class="muted">보이는 차시가 없습니다. 닫힌 차시는 학생에게 보이지 않습니다.</p>'},
   async startSolve(el){
     const n=+el.dataset.id;S.solve=n;$('solveLabel').textContent=n+'차시';
@@ -254,8 +259,8 @@ const actions={
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/dashboard`);
     const avg=v=>v==null?'-':(+v).toFixed(1),done=Object.values(d.setup).filter(Boolean).length;
     $('dashboard').innerHTML=`<div class="stats"><div class="stat"><span class="muted">지금 열린 반</span><b>${d.openLessonCount} / ${d.classroomCount}</b></div><div class="stat"><span class="muted">오늘 평균 정답</span><b>${avg(d.averageCorrect)} / ${avg(d.averageQuestionCount)}</b></div><div class="stat"><span class="muted">시작하기</span><b>${done} / 4</b></div></div>
-    <h3>지금 열린 문제</h3><table><tr><th>반</th><th>차시</th><th>응답</th><th>평균 정답</th></tr>${d.liveLessons.map(l=>`<tr><td>${esc(l.classroomName)}</td><td>${l.lessonNumber}. ${esc(l.lessonTitle)}</td><td>${l.responseCount} / ${l.studentCount}명</td><td>${avg(l.averageCorrect)} / ${l.questionCount}</td></tr>`).join('')}</table>
-    <h3>반별 진도와 평균</h3><table><tr><th>반</th><th>최근 평균</th>${d.lessons.map(l=>`<th>${l.lessonNumber}차시</th>`).join('')}</tr>${d.classrooms.map(c=>`<tr><td>${esc(c.classroomName)}</td><td>${avg(c.latestAverageCorrect)} / ${c.latestQuestionCount}</td>${c.lessonStatuses.map(s=>`<td>${badge(s.status)}</td>`).join('')}</tr>`).join('')}</table>
+    <h3>지금 열린 문제</h3><table><tr><th>반</th><th>차시</th><th>응답</th><th>평균 정답</th></tr>${d.liveLessons.map(l=>`<tr><td>${l.classNo}반</td><td>${l.lessonNumber}. ${esc(l.lessonTitle)}</td><td>${l.responseCount} / ${l.studentCount}명</td><td>${avg(l.averageCorrect)} / ${l.questionCount}</td></tr>`).join('')}</table>
+    <h3>반별 진도와 평균</h3><table><tr><th>반</th><th>최근 평균</th>${d.lessons.map(l=>`<th>${l.lessonNumber}차시</th>`).join('')}</tr>${d.classrooms.map(c=>`<tr><td>${c.classNo}반</td><td>${avg(c.latestAverageCorrect)} / ${c.latestQuestionCount}</td>${c.lessonStatuses.map(s=>`<td>${badge(s.status)}</td>`).join('')}</tr>`).join('')}</table>
     <h3>살펴볼 학생</h3><p>점수 하락: ${d.droppedStudents.map(w=>`${esc(w.studentName)} (${w.previousCorrectCount}→${w.latestCorrectCount})`).join(', ')||'없음'}</p><p>미응답: ${d.notRespondedStudents.map(w=>esc(w.studentName)).join(', ')||'없음'}</p>`;
   },
   async students(){
@@ -268,11 +273,11 @@ const actions={
     if($('scoreClassroom').value==='picked')p.set('classroomId',classroomId());
     if($('scoreLesson').value)p.set('lessonNumber',$('scoreLesson').value);
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/scores?${p}`),i=d.pageInfo;
-    $('scores').innerHTML=`<table><tr><th>반</th><th>학번</th><th>이름</th><th>차시</th><th>점수</th></tr>${d.content.map(s=>`<tr><td>${esc(s.classroomName)}</td><td>${esc(s.studentNumber)}</td><td>${esc(s.studentName)}</td><td>${s.lessonNumber}</td><td>${s.correctCount==null?badge('NOT_RESPONDED'):`${s.correctCount} / ${s.questionCount}`}</td></tr>`).join('')}</table><div class="row" style="margin-top:8px"><button data-act="scores" data-page="${i.page-1}" ${i.page?'':'disabled'}>이전</button><span class="muted">${i.page+1} / ${Math.max(i.totalPages,1)}쪽, 총 ${i.totalElements}건</span><button data-act="scores" data-page="${i.page+1}" ${i.hasNext?'':'disabled'}>다음</button></div>`;
+    $('scores').innerHTML=`<table><tr><th>반</th><th>학번</th><th>이름</th><th>차시</th><th>점수</th></tr>${d.content.map(s=>`<tr><td>${s.classNo}반</td><td>${esc(s.studentNumber)}</td><td>${esc(s.studentName)}</td><td>${s.lessonNumber}</td><td>${s.correctCount==null?badge('NOT_RESPONDED'):`${s.correctCount} / ${s.questionCount}`}</td></tr>`).join('')}</table><div class="row" style="margin-top:8px"><button data-act="scores" data-page="${i.page-1}" ${i.page?'':'disabled'}>이전</button><span class="muted">${i.page+1} / ${Math.max(i.totalPages,1)}쪽, 총 ${i.totalElements}건</span><button data-act="scores" data-page="${i.page+1}" ${i.hasNext?'':'disabled'}>다음</button></div>`;
   },
   async mypage(){
     const d=await call('teacher','GET','/api/v1/teacher/mypage');
-    $('mypage').innerHTML=`${d.profile?`<p><b>${esc(d.profile.name)}</b> ${esc(d.profile.schoolName)}</p>`:'<p class="muted">교사 정보를 아직 저장하지 않았습니다.</p>'}<table><tr><th>수업</th><th>차시</th><th>반</th></tr>${d.courses.map(c=>`<tr><td>${c.grade}학년 ${esc(c.subject)}</td><td>${c.lessonCount}개</td><td>${c.classrooms.map(k=>esc(k.name)).join(', ')||'-'}</td></tr>`).join('')}</table>`;
+    $('mypage').innerHTML=`${d.profile?`<p><b>${esc(d.profile.name)}</b> ${esc(d.profile.schoolName)}</p>`:'<p class="muted">교사 정보를 아직 저장하지 않았습니다.</p>'}<table><tr><th>수업</th><th>차시</th><th>반</th></tr>${d.courses.map(c=>`<tr><td>${c.grade}학년 ${esc(c.subjectName)}</td><td>${c.lessonCount}개</td><td>${c.classrooms.map(k=>k.classNo+'반').join(', ')||'-'}</td></tr>`).join('')}</table>`;
   },
   clearLog(){$('log').innerHTML=''}
 };
