@@ -2,6 +2,7 @@ package com.romafrihet.server.classroom
 
 import com.romafrihet.server.classroom.command.ClassroomCommand
 import com.romafrihet.server.classroom.command.ClassroomMembershipCommand
+import com.romafrihet.server.classroom.event.ClassroomMembershipRemovedEvent
 import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.course.Course
@@ -10,21 +11,36 @@ import com.romafrihet.server.school.School
 import com.romafrihet.server.student.StudentProfile
 import com.romafrihet.server.student.StudentProfileRepository
 import com.romafrihet.server.student.command.StudentProfileCommand
+import com.romafrihet.server.subject.Subject
 import io.mockk.every
+import io.mockk.justRun
 import io.mockk.mockk
+import io.mockk.verify
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
+import org.springframework.context.ApplicationEventPublisher
 import org.springframework.test.util.ReflectionTestUtils
+import java.time.Clock
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
 import java.util.UUID
 
 class ClassroomMembershipServiceTest {
     private val classroomRepository = mockk<ClassroomRepository>()
     private val membershipRepository = mockk<ClassroomMembershipRepository>()
     private val profileRepository = mockk<StudentProfileRepository>()
-    private val service = ClassroomMembershipService(classroomRepository, membershipRepository, profileRepository)
+    private val eventPublisher = mockk<ApplicationEventPublisher>()
+    private val clock = Clock.fixed(Instant.parse("2026-11-15T01:00:00Z"), ZoneId.of("Asia/Seoul"))
+    private val service = ClassroomMembershipService(
+        classroomRepository,
+        membershipRepository,
+        profileRepository,
+        eventPublisher,
+        clock,
+    )
 
     private val teacherId = UUID.randomUUID()
     private val studentId = UUID.randomUUID()
@@ -38,88 +54,106 @@ class ClassroomMembershipServiceTest {
     }
 
     @Test
-    fun `유효한 코드로 요청하면 가입 정보의 이름과 학번이 담긴 대기 요청을 만든다`() {
-        val classroom = classroomWithCode(LocalDateTime.now().plusMinutes(10))
-        every { classroomRepository.findByJoinCode(CODE) } returns classroom
-        every { membershipRepository.findByClassroomIdAndUserId(1L, studentId) } returns null
+    fun `유효한 코드를 넣으면 승인 없이 바로 연결된다`() {
+        givenClassroomWithCode(now().plusMinutes(1))
+        every { membershipRepository.existsByClassroomCourseIdAndUserId(COURSE_ID, studentId) } returns false
         every { membershipRepository.save(any()) } answers {
-            firstArg<ClassroomMembership>().also { ReflectionTestUtils.setField(it, "id", 10L) }
+            firstArg<ClassroomMembership>().also { ReflectionTestUtils.setField(it, "id", MEMBERSHIP_ID) }
         }
 
         val result = service.join(command)
 
         assertThat(result.studentName).isEqualTo("홍길동")
         assertThat(result.studentNumber).isEqualTo("20101")
-        assertThat(result.status).isEqualTo(MembershipStatus.PENDING)
+        assertThat(result.classNo).isEqualTo(1)
     }
 
     @Test
-    fun `가입 정보가 없으면 합류 요청을 거절한다`() {
+    fun `학생을 내보내면 기록을 지우라는 이벤트가 나간다`() {
+        val membership = membership()
+        every { classroomRepository.findByIdAndCourseUserId(CLASSROOM_ID, teacherId) } returns membership.classroom
+        every { membershipRepository.findByIdAndClassroomId(MEMBERSHIP_ID, CLASSROOM_ID) } returns membership
+        justRun { membershipRepository.delete(membership) }
+        justRun { eventPublisher.publishEvent(any<ClassroomMembershipRemovedEvent>()) }
+
+        service.removeStudent(ClassroomMembershipCommand.RemoveStudent(teacherId, CLASSROOM_ID, MEMBERSHIP_ID))
+
+        verify { membershipRepository.delete(membership) }
+        verify { eventPublisher.publishEvent(ClassroomMembershipRemovedEvent(CLASSROOM_ID, studentId)) }
+    }
+
+    @Test
+    fun `가입 정보가 없으면 연결할 수 없다`() {
         every { profileRepository.findByUserId(studentId) } returns null
 
-        assertThatThrownBy { service.join(command) }
-            .isInstanceOfSatisfying(BusinessException::class.java) {
-                assertThat(it.errorCode).isEqualTo(ErrorCode.STUDENT_PROFILE_REQUIRED)
-            }
-    }
-
-    @Test
-    fun `거절된 학생은 다시 요청할 수 있다`() {
-        val classroom = classroomWithCode(LocalDateTime.now().plusMinutes(10))
-        val rejected = membership(classroom).apply { reject() }
-        every { classroomRepository.findByJoinCode(CODE) } returns classroom
-        every { membershipRepository.findByClassroomIdAndUserId(1L, studentId) } returns rejected
-
-        assertThat(service.join(command).status).isEqualTo(MembershipStatus.PENDING)
-    }
-
-    @Test
-    fun `만료된 코드는 없는 코드와 구분해서 거절한다`() {
-        every { classroomRepository.findByJoinCode(CODE) } returns
-            classroomWithCode(LocalDateTime.now().minusSeconds(1))
-
-        assertThatThrownBy { service.join(command) }
-            .isInstanceOfSatisfying(BusinessException::class.java) {
-                assertThat(it.errorCode).isEqualTo(ErrorCode.JOIN_CODE_EXPIRED)
-            }
+        assertErrorCode(ErrorCode.STUDENT_PROFILE_REQUIRED) { service.join(command) }
     }
 
     @Test
     fun `없는 코드는 거절한다`() {
         every { classroomRepository.findByJoinCode(CODE) } returns null
 
-        assertThatThrownBy { service.join(command) }
-            .isInstanceOfSatisfying(BusinessException::class.java) {
-                assertThat(it.errorCode).isEqualTo(ErrorCode.JOIN_CODE_INVALID)
-            }
+        assertErrorCode(ErrorCode.JOIN_CODE_INVALID) { service.join(command) }
     }
 
     @Test
-    fun `이미 승인된 학생의 재요청은 거절한다`() {
-        val classroom = classroomWithCode(LocalDateTime.now().plusMinutes(10))
-        val approved = membership(classroom).apply { approve() }
-        every { classroomRepository.findByJoinCode(CODE) } returns classroom
-        every { membershipRepository.findByClassroomIdAndUserId(1L, studentId) } returns approved
+    fun `시간이 지난 코드는 거절한다`() {
+        givenClassroomWithCode(now().minusSeconds(1))
 
-        assertThatThrownBy { service.join(command) }
-            .isInstanceOfSatisfying(BusinessException::class.java) {
-                assertThat(it.errorCode).isEqualTo(ErrorCode.MEMBERSHIP_ALREADY_REQUESTED)
-            }
+        assertErrorCode(ErrorCode.JOIN_CODE_EXPIRED) { service.join(command) }
     }
 
-    private fun classroomWithCode(expiresAt: LocalDateTime): Classroom =
-        Classroom.create(course(), ClassroomCommand.Create(teacherId, 1L, "1반")).apply {
-            ReflectionTestUtils.setField(this, "id", 1L)
-            issueJoinCode(CODE, expiresAt)
+    @Test
+    fun `같은 수업에는 반이 달라도 다시 연결할 수 없다`() {
+        givenClassroomWithCode(now().plusMinutes(1))
+        every { membershipRepository.existsByClassroomCourseIdAndUserId(COURSE_ID, studentId) } returns true
+
+        assertErrorCode(ErrorCode.ALREADY_ENROLLED) { service.join(command) }
+    }
+
+    @Test
+    fun `다른 교사의 반에서는 학생을 내보낼 수 없다`() {
+        every { classroomRepository.findByIdAndCourseUserId(CLASSROOM_ID, teacherId) } returns null
+
+        assertErrorCode(ErrorCode.NOT_FOUND) {
+            service.removeStudent(ClassroomMembershipCommand.RemoveStudent(teacherId, CLASSROOM_ID, MEMBERSHIP_ID))
+        }
+    }
+
+    private fun now(): LocalDateTime = LocalDateTime.now(clock)
+
+    private fun givenClassroomWithCode(expiresAt: LocalDateTime) {
+        every { classroomRepository.findByJoinCode(CODE) } returns classroom().apply { issueJoinCode(CODE, expiresAt) }
+    }
+
+    private fun course(): Course {
+        val subject = mockk<Subject> {
+            every { id } returns 12L
+            every { name } returns "과학"
+        }
+        return Course.create(school, subject, CourseCommand.Create(teacherId, 1L, 2, 12L))
+            .apply { ReflectionTestUtils.setField(this, "id", COURSE_ID) }
+    }
+
+    private fun classroom(): Classroom =
+        Classroom.create(course(), ClassroomCommand.Create(teacherId, COURSE_ID, 1)).apply {
+            ReflectionTestUtils.setField(this, "id", CLASSROOM_ID)
         }
 
-    private fun course(): Course = Course.create(school, CourseCommand.Create(teacherId, 1L, 2, "과학"))
+    private fun membership(): ClassroomMembership = ClassroomMembership
+        .create(classroom(), ClassroomMembershipCommand.Create(studentId, "홍길동", "20101"))
+        .also { ReflectionTestUtils.setField(it, "id", MEMBERSHIP_ID) }
 
-    private fun membership(classroom: Classroom): ClassroomMembership = ClassroomMembership
-        .create(classroom, ClassroomMembershipCommand.Create(studentId, "홍길동", "20101"))
-        .also { ReflectionTestUtils.setField(it, "id", 10L) }
+    private fun assertErrorCode(errorCode: ErrorCode, block: () -> Unit) {
+        assertThatThrownBy(block).isInstanceOfSatisfying(BusinessException::class.java) {
+            assertThat(it.errorCode).isEqualTo(errorCode)
+        }
+    }
 
     private companion object {
-        const val CODE = "ABCD23"
+        const val CODE = "ABC234"
+        const val COURSE_ID = 1L
+        const val CLASSROOM_ID = 1L
+        const val MEMBERSHIP_ID = 10L
     }
 }

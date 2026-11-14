@@ -14,14 +14,20 @@ import com.romafrihet.server.course.CourseService
 import com.romafrihet.server.course.command.CourseCommand
 import com.romafrihet.server.lesson.LessonOpeningService
 import com.romafrihet.server.lesson.LessonService
+import com.romafrihet.server.lesson.LessonSubmission
+import com.romafrihet.server.lesson.LessonSubmissionRepository
 import com.romafrihet.server.lesson.QuestionImage
 import com.romafrihet.server.lesson.QuestionImageRepository
+import com.romafrihet.server.lesson.QuestionRepository
 import com.romafrihet.server.lesson.QuestionService
 import com.romafrihet.server.lesson.QuestionType
 import com.romafrihet.server.lesson.command.LessonCommand
+import com.romafrihet.server.lesson.command.LessonOpeningCommand
 import com.romafrihet.server.lesson.command.QuestionCommand
 import com.romafrihet.server.school.SchoolService
 import com.romafrihet.server.storage.StorageClient
+import com.romafrihet.server.subject.SchoolLevel
+import com.romafrihet.server.subject.SubjectService
 import io.mockk.every
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatThrownBy
@@ -42,6 +48,9 @@ abstract class TeacherFlowFixture {
 
     @Autowired
     protected lateinit var courseService: CourseService
+
+    @Autowired
+    protected lateinit var subjectService: SubjectService
 
     @Autowired
     protected lateinit var lessonService: LessonService
@@ -67,6 +76,12 @@ abstract class TeacherFlowFixture {
     @Autowired
     protected lateinit var openingService: LessonOpeningService
 
+    @Autowired
+    protected lateinit var questionRepository: QuestionRepository
+
+    @Autowired
+    protected lateinit var submissionRepository: LessonSubmissionRepository
+
     @MockkBean(relaxUnitFun = true)
     protected lateinit var storageClient: StorageClient
 
@@ -82,14 +97,17 @@ abstract class TeacherFlowFixture {
         every { storageClient.createSignedUrls(any()) } returns emptyMap()
     }
 
+    protected fun subjectId(name: String): Long =
+        subjectService.findAll(SchoolLevel.MIDDLE).single { it.name == name }.id
+
     protected fun createCourse(subject: String): Long =
-        courseService.create(CourseCommand.Create(teacherId, schoolId, 2, subject)).id
+        courseService.create(CourseCommand.Create(teacherId, schoolId, 2, subjectId(subject))).id
 
     protected fun addLesson(courseId: Long, title: String) =
         lessonService.create(LessonCommand.Create(teacherId, courseId, title))
 
-    protected fun createClassroom(name: String = "1반"): Long =
-        classroomService.create(ClassroomCommand.Create(teacherId, courseId, name)).id
+    protected fun createClassroom(classNo: Int = 1): Long =
+        classroomService.create(ClassroomCommand.Create(teacherId, courseId, classNo)).id
 
     protected fun choice(content: String?, correct: Boolean = false, imageId: Long? = null) =
         QuestionCommand.Option(content, imageId, correct)
@@ -106,6 +124,8 @@ abstract class TeacherFlowFixture {
             type = QuestionType.MULTIPLE_CHOICE,
             content = "광합성이 일어나는 곳은?",
             imageId = null,
+            timeLimitSec = 30,
+            explanation = null,
             options = listOf(choice("엽록체", correct = true), choice("미토콘드리아")),
         ),
     )
@@ -118,14 +138,29 @@ abstract class TeacherFlowFixture {
             ),
         )
 
-    protected fun approvedClassroom(name: String = "1반"): Long {
-        val classroomId = createClassroom(name)
-        val membership = request(classroomId, studentId, "홍길동", "20101")
-        membershipService.approve(
-            ClassroomMembershipCommand.Decide(teacherId, classroomId, requireNotNull(membership.id)),
-        )
+    protected fun joinedClassroom(classNo: Int = 1): Long {
+        val classroomId = createClassroom(classNo)
+        request(classroomId, studentId, "홍길동", "20101")
         return classroomId
     }
+
+    /** 학생 제출 API 없이 채점 결과만 만든다. */
+    protected fun submit(classroomId: Long, userId: UUID, questionId: Long, correct: Boolean) {
+        val question = requireNotNull(questionRepository.findWithOptions(questionId, teacherId))
+        val option = question.options.first { it.isCorrect == correct }
+        val submission =
+            LessonSubmission.create(
+                classroomRepository.findById(classroomId).orElseThrow(),
+                question.lessonNumber,
+                userId,
+                1,
+            )
+        submission.addAnswer(question, option.id, null)
+        submissionRepository.save(submission)
+    }
+
+    protected fun openLesson(classroomId: Long, lessonNumber: Int) =
+        openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, lessonNumber))
 
     protected fun assertErrorCode(errorCode: ErrorCode, block: () -> Unit) {
         assertThatThrownBy(block).isInstanceOfSatisfying(BusinessException::class.java) {

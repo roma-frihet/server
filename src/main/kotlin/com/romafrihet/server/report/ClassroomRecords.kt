@@ -2,7 +2,6 @@ package com.romafrihet.server.report
 
 import com.romafrihet.server.classroom.ClassroomMembership
 import com.romafrihet.server.classroom.ClassroomMembershipRepository
-import com.romafrihet.server.classroom.MembershipStatus
 import com.romafrihet.server.lesson.LessonOpening
 import com.romafrihet.server.lesson.LessonOpeningRepository
 import com.romafrihet.server.lesson.LessonSubmission
@@ -28,7 +27,7 @@ class ClassroomRecordsReader(
     fun read(courseId: Long, classroomIds: List<Long>): ClassroomRecords = ClassroomRecords(
         students =
         classroomMembershipRepository
-            .findAllByClassroomIdInAndStatus(classroomIds, MembershipStatus.APPROVED)
+            .findAllByClassroomIdIn(classroomIds)
             .groupBy { requireNotNull(it.classroom.id) },
         openings =
         lessonOpeningRepository

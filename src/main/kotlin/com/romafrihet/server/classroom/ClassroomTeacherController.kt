@@ -2,7 +2,6 @@ package com.romafrihet.server.classroom
 
 import com.romafrihet.server.classroom.command.ClassroomCommand
 import com.romafrihet.server.classroom.command.ClassroomMembershipCommand
-import com.romafrihet.server.classroom.rqrs.ClassroomMembershipRequest
 import com.romafrihet.server.classroom.rqrs.ClassroomMembershipResponse
 import com.romafrihet.server.classroom.rqrs.ClassroomRequest
 import com.romafrihet.server.classroom.rqrs.ClassroomResponse
@@ -11,7 +10,6 @@ import com.romafrihet.server.common.web.BaseController
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
-import org.springdoc.core.annotations.ParameterObject
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -52,39 +50,21 @@ class ClassroomTeacherController(
     fun closeJoinCode(@PathVariable classroomId: Long) =
         classroomService.closeJoinCode(ClassroomCommand.IssueJoinCode(getUserId(), classroomId))
 
-    @Operation(summary = "반 합류 요청 목록")
+    @Operation(summary = "반 학생 목록", description = "코드로 연결된 학생입니다. 승인 절차는 없습니다.")
     @GetMapping("/{classroomId}/memberships")
-    fun findMemberships(
-        @PathVariable classroomId: Long,
-        @ParameterObject query: ClassroomMembershipRequest.Query,
-    ): List<ClassroomMembershipResponse.Result> = classroomMembershipService
-        .findAllForTeacher(query.toCommand(getUserId(), classroomId))
-        .map(ClassroomMembershipResponse.Result::of)
-
-    @Operation(summary = "대기 중인 합류 요청 모두 승인")
-    @PostMapping("/{classroomId}/memberships/approve-all")
-    fun approveAll(@PathVariable classroomId: Long): List<ClassroomMembershipResponse.Result> =
+    fun findMemberships(@PathVariable classroomId: Long): List<ClassroomMembershipResponse.Result> =
         classroomMembershipService
-            .approveAll(ClassroomMembershipCommand.ApproveAll(getUserId(), classroomId))
+            .findAllForTeacher(ClassroomMembershipCommand.Query(getUserId(), classroomId))
             .map(ClassroomMembershipResponse.Result::of)
 
-    @Operation(summary = "합류 요청 승인")
-    @PostMapping("/{classroomId}/memberships/{membershipId}/approve")
-    fun approve(
-        @PathVariable classroomId: Long,
-        @PathVariable membershipId: Long,
-    ): ClassroomMembershipResponse.Result = ClassroomMembershipResponse.Result.of(
-        classroomMembershipService.approve(
-            ClassroomMembershipCommand.Decide(getUserId(), classroomId, membershipId),
-        ),
+    @Operation(
+        summary = "학생 내보내기",
+        description = "코드를 잘못 넣어 들어온 학생을 반에서 뺍니다. 그 반에서 푼 기록도 함께 지워집니다.",
     )
-
-    @Operation(summary = "합류 요청 거절")
-    @PostMapping("/{classroomId}/memberships/{membershipId}/reject")
-    fun reject(@PathVariable classroomId: Long, @PathVariable membershipId: Long): ClassroomMembershipResponse.Result =
-        ClassroomMembershipResponse.Result.of(
-            classroomMembershipService.reject(
-                ClassroomMembershipCommand.Decide(getUserId(), classroomId, membershipId),
-            ),
+    @DeleteMapping("/{classroomId}/memberships/{membershipId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun removeStudent(@PathVariable classroomId: Long, @PathVariable membershipId: Long) =
+        classroomMembershipService.removeStudent(
+            ClassroomMembershipCommand.RemoveStudent(getUserId(), classroomId, membershipId),
         )
 }

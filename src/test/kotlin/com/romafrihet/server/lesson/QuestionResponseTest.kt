@@ -14,6 +14,9 @@ class QuestionResponseTest {
         content = "문제",
         imageId = null,
         imageUrl = null,
+        timeLimitSec = 45,
+        explanation = "해설입니다",
+        displayOrder = 0,
         options = listOf(QuestionOptionDto(2, 0, "정답", null, null, isCorrect = true)),
     )
 
@@ -29,5 +32,14 @@ class QuestionResponseTest {
         val result = QuestionResponse.StudentResult.of(dto(QuestionType.SHORT_ANSWER))
 
         assertThat(result.options).isEmpty()
+    }
+
+    @Test
+    fun `학생 응답에는 제한 시간만 담고 해설은 담지 않는다`() {
+        val result = QuestionResponse.StudentResult.of(dto(QuestionType.MULTIPLE_CHOICE))
+
+        assertThat(result.timeLimitSec).isEqualTo(45)
+        assertThat(result).hasNoNullFieldsOrPropertiesExcept("imageUrl")
+        assertThat(result.toString()).doesNotContain("해설입니다")
     }
 }

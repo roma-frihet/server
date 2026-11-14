@@ -40,7 +40,7 @@ class ReportService(
         val classroom = classroomRepository.getOwned(command.classroomId, command.userId)
         val records =
             classroomRecordsReader.read(requireNotNull(classroom.course.id), listOf(command.classroomId))
-        val progress = classroomProgressCalculator.calculate(command.classroomId, classroom.name, records)
+        val progress = classroomProgressCalculator.calculate(command.classroomId, classroom.classNo, records)
         return progress.copy(students = progress.students.filter { command.keyword in it.studentName })
     }
 
@@ -58,7 +58,7 @@ class ReportService(
             ).map {
                 StudentLessonScoreDto(
                     classroomId = it.classroomId,
-                    classroomName = it.classroomName,
+                    classNo = it.classNo,
                     membershipId = it.membershipId,
                     studentName = it.studentName,
                     studentNumber = it.studentNumber,
@@ -71,11 +71,11 @@ class ReportService(
 
     fun findDashboard(command: ReportCommand.Dashboard): DashboardDto {
         courseRepository.getOwned(command.courseId, command.userId)
-        val classrooms = classroomRepository.findAllByCourseIdOrderByNameAsc(command.courseId)
+        val classrooms = classroomRepository.findAllByCourseIdOrderByClassNoAsc(command.courseId)
         val lessons = lessonRepository.findAllByCourseIdOrderByLessonNumberAsc(command.courseId)
         val records = classroomRecordsReader.read(command.courseId, classrooms.map { requireNotNull(it.id) })
         val progress =
-            classrooms.map { classroomProgressCalculator.calculate(requireNotNull(it.id), it.name, records) }
+            classrooms.map { classroomProgressCalculator.calculate(requireNotNull(it.id), it.classNo, records) }
         val live = toLiveLessons(classrooms, lessons, records)
         return DashboardDto(
             classroomCount = classrooms.size,
@@ -110,7 +110,7 @@ class ReportService(
                     records.submissions[classroomId].orEmpty().filter { it.lessonNumber == opening.lessonNumber }
                 LiveLessonDto(
                     classroomId = classroomId,
-                    classroomName = classroom.name,
+                    classNo = classroom.classNo,
                     lessonNumber = opening.lessonNumber,
                     lessonTitle = titles[opening.lessonNumber].orEmpty(),
                     responseCount = responses.size,
@@ -130,7 +130,7 @@ class ReportService(
         val statuses = records.openings[progress.classroomId].orEmpty().associateBy { it.lessonNumber }
         return DashboardClassroomDto(
             classroomId = progress.classroomId,
-            classroomName = progress.classroomName,
+            classNo = progress.classNo,
             latestAverageCorrect = progress.latestAverageCorrect,
             latestQuestionCount = progress.latestQuestionCount,
             lessonStatuses =
@@ -150,7 +150,7 @@ class ReportService(
         classroom.students.filter { it.status == status }.map {
             WatchStudentDto(
                 classroomId = classroom.classroomId,
-                classroomName = classroom.classroomName,
+                classNo = classroom.classNo,
                 membershipId = it.membershipId,
                 studentName = it.studentName,
                 studentNumber = it.studentNumber,

@@ -65,7 +65,7 @@ class ReportResponse private constructor() {
     @Schema(name = "ReportResponseClassroom")
     data class Classroom(
         val classroomId: Long,
-        val classroomName: String,
+        val classNo: Int,
         val studentCount: Int,
         val latestLessonNumber: Int?,
         val latestQuestionCount: Int,
@@ -77,7 +77,7 @@ class ReportResponse private constructor() {
         companion object {
             fun of(dto: ClassroomProgressDto) = Classroom(
                 classroomId = dto.classroomId,
-                classroomName = dto.classroomName,
+                classNo = dto.classNo,
                 studentCount = dto.studentCount,
                 latestLessonNumber = dto.latestLessonNumber,
                 latestQuestionCount = dto.latestQuestionCount,
@@ -92,7 +92,7 @@ class ReportResponse private constructor() {
     @Schema(name = "ReportResponseStudentScore")
     data class StudentScore(
         val classroomId: Long,
-        val classroomName: String,
+        val classNo: Int,
         val membershipId: Long,
         val studentName: String,
         val studentNumber: String,
@@ -103,7 +103,7 @@ class ReportResponse private constructor() {
         companion object {
             fun of(dto: StudentLessonScoreDto) = StudentScore(
                 classroomId = dto.classroomId,
-                classroomName = dto.classroomName,
+                classNo = dto.classNo,
                 membershipId = dto.membershipId,
                 studentName = dto.studentName,
                 studentNumber = dto.studentNumber,
@@ -142,7 +142,7 @@ class ReportResponse private constructor() {
     @Schema(name = "ReportResponseLiveLesson")
     data class LiveLesson(
         val classroomId: Long,
-        val classroomName: String,
+        val classNo: Int,
         val lessonNumber: Int,
         val lessonTitle: String,
         val responseCount: Int,
@@ -153,7 +153,7 @@ class ReportResponse private constructor() {
         companion object {
             fun of(dto: LiveLessonDto) = LiveLesson(
                 classroomId = dto.classroomId,
-                classroomName = dto.classroomName,
+                classNo = dto.classNo,
                 lessonNumber = dto.lessonNumber,
                 lessonTitle = dto.lessonTitle,
                 responseCount = dto.responseCount,
@@ -182,7 +182,7 @@ class ReportResponse private constructor() {
     @Schema(name = "ReportResponseDashboardClassroom")
     data class DashboardClassroom(
         val classroomId: Long,
-        val classroomName: String,
+        val classNo: Int,
         val latestAverageCorrect: Double?,
         val latestQuestionCount: Int,
         val lessonStatuses: List<ClassroomLessonStatus>,
@@ -190,7 +190,7 @@ class ReportResponse private constructor() {
         companion object {
             fun of(dto: DashboardClassroomDto) = DashboardClassroom(
                 classroomId = dto.classroomId,
-                classroomName = dto.classroomName,
+                classNo = dto.classNo,
                 latestAverageCorrect = dto.latestAverageCorrect,
                 latestQuestionCount = dto.latestQuestionCount,
                 lessonStatuses = dto.lessonStatuses.map(ClassroomLessonStatus::of),
@@ -201,7 +201,7 @@ class ReportResponse private constructor() {
     @Schema(name = "ReportResponseWatchStudent")
     data class WatchStudent(
         val classroomId: Long,
-        val classroomName: String,
+        val classNo: Int,
         val membershipId: Long,
         val studentName: String,
         val studentNumber: String,
@@ -211,7 +211,7 @@ class ReportResponse private constructor() {
         companion object {
             fun of(dto: WatchStudentDto) = WatchStudent(
                 classroomId = dto.classroomId,
-                classroomName = dto.classroomName,
+                classNo = dto.classNo,
                 membershipId = dto.membershipId,
                 studentName = dto.studentName,
                 studentNumber = dto.studentNumber,

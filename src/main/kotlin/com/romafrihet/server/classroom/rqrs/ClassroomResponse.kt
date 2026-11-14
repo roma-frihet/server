@@ -9,7 +9,9 @@ class ClassroomResponse private constructor() {
     data class Result(
         val id: Long,
         val courseId: Long,
-        val name: String,
+        val grade: Int,
+        val subjectName: String,
+        val classNo: Int,
         val joinCode: String?,
         val joinCodeExpiresAt: LocalDateTime?,
         val studentCount: Long,
@@ -18,7 +20,9 @@ class ClassroomResponse private constructor() {
             fun of(dto: ClassroomDto) = Result(
                 id = dto.id,
                 courseId = dto.courseId,
-                name = dto.name,
+                grade = dto.grade,
+                subjectName = dto.subjectName,
+                classNo = dto.classNo,
                 joinCode = dto.joinCode,
                 joinCodeExpiresAt = dto.joinCodeExpiresAt,
                 studentCount = dto.studentCount,

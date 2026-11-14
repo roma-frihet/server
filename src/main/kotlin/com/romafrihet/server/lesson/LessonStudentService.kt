@@ -2,7 +2,6 @@ package com.romafrihet.server.lesson
 
 import com.romafrihet.server.classroom.ClassroomMembershipRepository
 import com.romafrihet.server.classroom.ClassroomRepository
-import com.romafrihet.server.classroom.MembershipStatus
 import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.common.exception.assertCheck
@@ -63,11 +62,7 @@ class LessonStudentService(
 
     private fun validateApproved(userId: UUID, classroomId: Long) {
         assertCheck(
-            classroomMembershipRepository.existsByClassroomIdAndUserIdAndStatus(
-                classroomId,
-                userId,
-                MembershipStatus.APPROVED,
-            ),
+            classroomMembershipRepository.existsByClassroomIdAndUserId(classroomId, userId),
         ) { ErrorCode.FORBIDDEN }
     }
 }

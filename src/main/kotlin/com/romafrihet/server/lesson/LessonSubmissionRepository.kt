@@ -13,6 +13,8 @@ interface LessonSubmissionRepository :
 
     fun findAllByClassroomIdIn(classroomIds: Collection<Long>): List<LessonSubmission>
 
+    fun deleteAllByClassroomIdAndUserId(classroomId: Long, userId: UUID)
+
     @Query(
         """
         select distinct s from LessonSubmission s

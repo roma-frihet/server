@@ -2,7 +2,6 @@ package com.romafrihet.server.lesson
 
 import com.romafrihet.server.classroom.ClassroomMembershipRepository
 import com.romafrihet.server.classroom.ClassroomRepository
-import com.romafrihet.server.classroom.MembershipStatus
 import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.common.exception.assertCheck
@@ -99,13 +98,15 @@ class LessonSubmissionService(
         return byQuestion
     }
 
+    /** 반에서 내보낸 학생의 기록을 지운다. 되돌리는 기능이라 흔적을 남기지 않는다. */
+    @Transactional
+    fun deleteAllInClassroom(command: SubmissionCommand.DeleteAllInClassroom) {
+        lessonSubmissionRepository.deleteAllByClassroomIdAndUserId(command.classroomId, command.userId)
+    }
+
     private fun validateApproved(userId: UUID, classroomId: Long) {
         assertCheck(
-            classroomMembershipRepository.existsByClassroomIdAndUserIdAndStatus(
-                classroomId,
-                userId,
-                MembershipStatus.APPROVED,
-            ),
+            classroomMembershipRepository.existsByClassroomIdAndUserId(classroomId, userId),
         ) { ErrorCode.FORBIDDEN }
     }
 }

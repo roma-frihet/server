@@ -3,7 +3,6 @@ package com.romafrihet.server.lesson
 import com.querydsl.core.types.Predicate
 import com.querydsl.core.types.Projections
 import com.querydsl.jpa.impl.JPAQueryFactory
-import com.romafrihet.server.classroom.MembershipStatus
 import com.romafrihet.server.classroom.QClassroom
 import com.romafrihet.server.classroom.QClassroomMembership
 import com.romafrihet.server.lesson.dto.LessonScoreQueryDto
@@ -28,7 +27,7 @@ class LessonSubmissionRepositoryExtensionImpl(private val queryFactory: JPAQuery
                     Projections.constructor(
                         LessonScoreProjection::class.java,
                         classroom.id,
-                        classroom.name,
+                        classroom.classNo,
                         membership.id,
                         membership.studentName,
                         membership.studentNumber,
@@ -47,7 +46,7 @@ class LessonSubmissionRepositoryExtensionImpl(private val queryFactory: JPAQuery
                     submission.lessonNumber.eq(opening.lessonNumber),
                 ).where(*conditions)
                 .orderBy(
-                    classroom.name.asc(),
+                    classroom.classNo.asc(),
                     classroom.id.asc(),
                     membership.studentNumber.asc(),
                     membership.id.asc(),
@@ -69,7 +68,6 @@ class LessonSubmissionRepositoryExtensionImpl(private val queryFactory: JPAQuery
 
     private fun conditionsOf(query: LessonScoreQueryDto): Array<Predicate> = listOfNotNull(
         classroom.course.id.eq(query.courseId),
-        membership.status.eq(MembershipStatus.APPROVED),
         query.classroomId?.let(classroom.id::eq),
         query.lessonNumber?.let(opening.lessonNumber::eq),
     ).toTypedArray()

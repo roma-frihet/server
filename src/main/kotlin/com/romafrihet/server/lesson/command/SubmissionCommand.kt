@@ -8,4 +8,6 @@ class SubmissionCommand private constructor() {
     data class Create(val userId: UUID, val classroomId: Long, val lessonNumber: Int, val answers: List<Answer>)
 
     data class Query(val userId: UUID, val classroomId: Long, val lessonNumber: Int)
+
+    data class DeleteAllInClassroom(val classroomId: Long, val userId: UUID)
 }

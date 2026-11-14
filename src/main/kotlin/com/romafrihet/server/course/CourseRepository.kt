@@ -9,10 +9,10 @@ import java.util.UUID
 interface CourseRepository : JpaRepository<Course, Long> {
     fun findByIdAndUserId(id: Long, userId: UUID): Course?
 
-    fun existsByUserIdAndGradeAndSubject(userId: UUID, grade: Int, subject: String): Boolean
+    fun existsByUserIdAndGradeAndSubjectId(userId: UUID, grade: Int, subjectId: Long): Boolean
 
-    @EntityGraph(attributePaths = ["school"])
-    fun findAllByUserIdOrderByGradeAscSubjectAsc(userId: UUID): List<Course>
+    @EntityGraph(attributePaths = ["school", "subject"])
+    fun findAllByUserIdOrderByGradeAscSubjectDisplayOrderAsc(userId: UUID): List<Course>
 }
 
 /** 다른 교사의 수업은 존재 자체를 알리지 않도록 404로 응답한다. */

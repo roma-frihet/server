@@ -8,9 +8,9 @@ import io.swagger.v3.oas.annotations.media.Schema
 
 class TeacherResponse private constructor() {
     @Schema(name = "TeacherResponseClassroom")
-    data class Classroom(val id: Long, val name: String) {
+    data class Classroom(val id: Long, val classNo: Int) {
         companion object {
-            fun of(dto: MyPageClassroomDto) = Classroom(id = dto.id, name = dto.name)
+            fun of(dto: MyPageClassroomDto) = Classroom(id = dto.id, classNo = dto.classNo)
         }
     }
 
@@ -18,7 +18,8 @@ class TeacherResponse private constructor() {
     data class Course(
         val id: Long,
         val grade: Int,
-        val subject: String,
+        val subjectId: Long,
+        val subjectName: String,
         val lessonCount: Int,
         val classrooms: List<Classroom>,
     ) {
@@ -26,7 +27,8 @@ class TeacherResponse private constructor() {
             fun of(dto: MyPageCourseDto) = Course(
                 id = dto.id,
                 grade = dto.grade,
-                subject = dto.subject,
+                subjectId = dto.subjectId,
+                subjectName = dto.subjectName,
                 lessonCount = dto.lessonCount,
                 classrooms = dto.classrooms.map(Classroom::of),
             )

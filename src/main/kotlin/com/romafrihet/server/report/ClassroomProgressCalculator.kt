@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component
 /** 최근 차시는 이 반에 연 차시 중 번호가 가장 큰 차시다. */
 @Component
 class ClassroomProgressCalculator {
-    fun calculate(classroomId: Long, classroomName: String, records: ClassroomRecords): ClassroomProgressDto {
+    fun calculate(classroomId: Long, classNo: Int, records: ClassroomRecords): ClassroomProgressDto {
         val students = records.students[classroomId].orEmpty().sortedBy { it.studentNumber }
         val openedLessons = records.openings[classroomId].orEmpty().map(LessonOpening::lessonNumber).sorted()
         val submissions = records.submissions[classroomId].orEmpty()
@@ -31,7 +31,7 @@ class ClassroomProgressCalculator {
             }
         return ClassroomProgressDto(
             classroomId = classroomId,
-            classroomName = classroomName,
+            classNo = classNo,
             studentCount = students.size,
             latestLessonNumber = latest,
             latestQuestionCount = latest?.let { records.questionCounts[it] } ?: 0,

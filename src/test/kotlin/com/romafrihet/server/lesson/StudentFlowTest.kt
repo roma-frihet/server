@@ -1,7 +1,6 @@
 package com.romafrihet.server.lesson
 
 import com.romafrihet.server.TeacherFlowFixture
-import com.romafrihet.server.classroom.MembershipStatus
 import com.romafrihet.server.classroom.command.ClassroomCommand
 import com.romafrihet.server.classroom.command.ClassroomMembershipCommand
 import com.romafrihet.server.common.exception.ErrorCode
@@ -39,33 +38,34 @@ class StudentFlowTest : TeacherFlowFixture() {
             type = QuestionType.SHORT_ANSWER,
             content = "필요한 기체는?",
             imageId = null,
+            timeLimitSec = 30,
+            explanation = null,
             options = listOf(choice("이산화탄소", correct = true), choice("CO2", correct = true)),
         ),
     )
 
-    private fun joinedClassroom(name: String = "1반"): Long {
+    private fun enrolledClassroom(classNo: Int = 1): Long {
         saveProfile()
-        val classroomId = classroomService.create(ClassroomCommand.Create(teacherId, courseId, name)).id
+        val classroomId = classroomService.create(ClassroomCommand.Create(teacherId, courseId, classNo)).id
         val code = classroomService.issueJoinCode(ClassroomCommand.IssueJoinCode(teacherId, classroomId)).joinCode
-        val membership = membershipService.join(ClassroomMembershipCommand.Join(studentId, requireNotNull(code)))
-        membershipService.approve(ClassroomMembershipCommand.Decide(teacherId, classroomId, membership.id))
+        membershipService.join(ClassroomMembershipCommand.Join(studentId, requireNotNull(code)))
         return classroomId
     }
 
     @Test
-    fun `승인 목록에는 가입 때 입력한 이름과 학번이 보인다`() {
+    fun `반 학생 목록에는 가입 때 입력한 이름과 학번이 보인다`() {
         val profile = saveProfile()
-        val classroomId = classroomService.create(ClassroomCommand.Create(teacherId, courseId, "1반")).id
+        val classroomId = classroomService.create(ClassroomCommand.Create(teacherId, courseId, 1)).id
         val code = classroomService.issueJoinCode(ClassroomCommand.IssueJoinCode(teacherId, classroomId)).joinCode
         membershipService.join(ClassroomMembershipCommand.Join(studentId, requireNotNull(code)))
 
-        val pending = membershipService
-            .findAllForTeacher(ClassroomMembershipCommand.Query(teacherId, classroomId, MembershipStatus.PENDING))
+        val joined = membershipService
+            .findAllForTeacher(ClassroomMembershipCommand.Query(teacherId, classroomId))
             .single()
 
-        assertThat(pending.studentName).isEqualTo(profile.name)
-        assertThat(pending.studentNumber).isEqualTo(profile.studentNumber)
-        assertThat(pending.subject).isEqualTo("과학")
+        assertThat(joined.studentName).isEqualTo(profile.name)
+        assertThat(joined.studentNumber).isEqualTo(profile.studentNumber)
+        assertThat(joined.subjectName).isEqualTo("과학")
     }
 
     @Test
@@ -91,7 +91,7 @@ class StudentFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `승인된 학생은 열린 차시의 문제를 조회한다`() {
-        val classroomId = joinedClassroom()
+        val classroomId = enrolledClassroom()
         createQuestion()
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 3))
 
@@ -103,7 +103,7 @@ class StudentFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `열지 않은 차시와 승인되지 않은 학생은 조회할 수 없다`() {
-        val classroomId = joinedClassroom()
+        val classroomId = enrolledClassroom()
         createQuestion()
 
         assertErrorCode(ErrorCode.NOT_FOUND) {
@@ -116,7 +116,7 @@ class StudentFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `닫은 차시는 학생에게 숨기고 마감한 차시는 목록에 보인다`() {
-        val classroomId = joinedClassroom()
+        val classroomId = enrolledClassroom()
         createQuestion(lessonNumber = 1)
         val query = QuestionCommand.StudentQuery(studentId, classroomId, 1)
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
@@ -132,7 +132,7 @@ class StudentFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `제출은 한 번이고 마감 후 내 답과 정답을 볼 수 있다`() {
-        val classroomId = joinedClassroom()
+        val classroomId = enrolledClassroom()
         val multipleChoice = createQuestion(lessonNumber = 1)
         val shortAnswer = createShortAnswer(lessonNumber = 1)
         val correctOption = questionService
@@ -162,7 +162,7 @@ class StudentFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `이 차시 문제가 아닌 답안은 거절하고 대기 학생은 제출할 수 없다`() {
-        val classroomId = joinedClassroom()
+        val classroomId = enrolledClassroom()
         val question = createQuestion(lessonNumber = 1)
         val other = createQuestion(lessonNumber = 2)
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))

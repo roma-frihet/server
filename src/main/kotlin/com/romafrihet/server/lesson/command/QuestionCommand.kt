@@ -13,6 +13,8 @@ class QuestionCommand private constructor() {
         val type: QuestionType,
         val content: String?,
         val imageId: Long?,
+        val timeLimitSec: Int,
+        val explanation: String?,
         val options: List<Option>,
     )
 
@@ -22,6 +24,8 @@ class QuestionCommand private constructor() {
         val type: QuestionType,
         val content: String?,
         val imageId: Long?,
+        val timeLimitSec: Int,
+        val explanation: String?,
         val options: List<Option>,
     )
 
