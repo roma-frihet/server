@@ -2,6 +2,8 @@
 
 Spring Boot 4.1 + Kotlin 2.3 + JPA(QueryDSL) + Supabase(PostgreSQL, Auth) 백엔드.
 
+프론트엔드를 붙인다면 [docs/frontend/README.md](docs/frontend/README.md)부터 읽습니다. 서비스 흐름과 화면별 API를 담았습니다.
+
 ## 요구 사항
 
 개발은 WSL Ubuntu에서 한다. 아래 도구는 모두 WSL 안에서 쓸 수 있어야 한다.

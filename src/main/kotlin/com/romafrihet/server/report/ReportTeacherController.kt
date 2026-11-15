@@ -34,7 +34,7 @@ class ReportTeacherController(private val reportService: ReportService) : BaseCo
     ): ReportResponse.ScoreResultPage =
         ReportResponse.ScoreResultPage.of(reportService.findScores(query.toCommand(getUserId(), courseId)))
 
-    @Operation(summary = "반 학생 관리", description = "승인된 학생의 점수와 상태를 내립니다. 검색어는 학생 목록에만 적용합니다.")
+    @Operation(summary = "반 학생 관리", description = "연결된 학생의 점수와 상태를 내립니다. 검색어는 학생 목록에만 적용합니다.")
     @GetMapping("/classrooms/{classroomId}/students")
     fun findStudents(
         @PathVariable classroomId: Long,

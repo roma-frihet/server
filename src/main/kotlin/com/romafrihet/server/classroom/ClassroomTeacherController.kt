@@ -38,7 +38,7 @@ class ClassroomTeacherController(
     fun findAll(): List<ClassroomResponse.Result> =
         classroomService.findAll(getUserId()).map(ClassroomResponse.Result::of)
 
-    @Operation(summary = "합류 코드 발급", description = "코드는 3분간 유효하고, 다시 발급하면 이전 코드는 바로 무효가 됩니다.")
+    @Operation(summary = "합류 코드 발급", description = "코드는 5분간 유효하고, 다시 발급하면 이전 코드는 바로 무효가 됩니다.")
     @PostMapping("/{classroomId}/join-code")
     fun issueJoinCode(@PathVariable classroomId: Long): ClassroomResponse.Result = ClassroomResponse.Result.of(
         classroomService.issueJoinCode(ClassroomCommand.IssueJoinCode(getUserId(), classroomId)),
