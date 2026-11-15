@@ -31,6 +31,7 @@ import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageRequest
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.util.UUID
 
 @Service
 @Transactional(readOnly = true)
@@ -97,7 +98,7 @@ class ReportService(
     }
 
     /** 시작하지 않은 문제는 행이 없어 담기지 않는다. 교사도 그 문제는 고칠 수 없다. */
-    private fun toAnswers(classroomId: Long, lessonNumber: Int, userId: java.util.UUID): List<StudentAnswerDto> =
+    private fun toAnswers(classroomId: Long, lessonNumber: Int, userId: UUID): List<StudentAnswerDto> =
         attemptRepository
             .findByClassroomIdAndLessonNumberAndUserId(classroomId, lessonNumber, userId)
             ?.id

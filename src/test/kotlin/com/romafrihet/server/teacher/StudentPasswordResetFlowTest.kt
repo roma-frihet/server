@@ -11,6 +11,7 @@ import com.romafrihet.server.student.StudentProfileService
 import com.romafrihet.server.student.command.StudentPasswordCommand
 import com.romafrihet.server.student.command.StudentProfileCommand
 import com.romafrihet.server.teacher.command.TeacherCommand
+import io.mockk.every
 import io.mockk.justRun
 import io.mockk.slot
 import io.mockk.verify
@@ -20,6 +21,7 @@ import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.support.TransactionSynchronizationManager
 import java.util.UUID
+import java.util.concurrent.atomic.AtomicInteger
 
 class StudentPasswordResetFlowTest : TeacherFlowFixture() {
     @Autowired
@@ -77,7 +79,7 @@ class StudentPasswordResetFlowTest : TeacherFlowFixture() {
         val classroomId = joinedClassroom()
         var activeDuringCall: Boolean? = null
         justRun { supabaseAuthClient.updatePassword(any(), any()) }
-        io.mockk.every { supabaseAuthClient.updatePassword(any(), any()) } answers {
+        every { supabaseAuthClient.updatePassword(any(), any()) } answers {
             activeDuringCall = TransactionSynchronizationManager.isActualTransactionActive()
         }
 
@@ -122,6 +124,6 @@ class StudentPasswordResetFlowTest : TeacherFlowFixture() {
         requireNotNull(membershipRepository.findAllByClassroomIdOrderByIdAsc(classroomId).single().id)
 
     private companion object {
-        val seatNumbers = java.util.concurrent.atomic.AtomicInteger(50)
+        val seatNumbers = AtomicInteger(50)
     }
 }

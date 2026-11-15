@@ -4,6 +4,7 @@ import com.romafrihet.server.TeacherFlowFixture
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.lesson.AttemptPhase
 import com.romafrihet.server.lesson.QuestionResult
+import com.romafrihet.server.lesson.command.LessonOpeningCommand
 import com.romafrihet.server.report.command.ReportCommand
 import com.romafrihet.server.report.rqrs.StudentReportResponse
 import org.assertj.core.api.Assertions.assertThat
@@ -107,5 +108,5 @@ class StudentReportFlowTest : TeacherFlowFixture() {
     private fun command(classroomId: Long) = ReportCommand.StudentReport(studentId, classroomId)
 
     private fun change(classroomId: Long, lessonNumber: Int) =
-        com.romafrihet.server.lesson.command.LessonOpeningCommand.Change(teacherId, classroomId, lessonNumber)
+        LessonOpeningCommand.Change(teacherId, classroomId, lessonNumber)
 }

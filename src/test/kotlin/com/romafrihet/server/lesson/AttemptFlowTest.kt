@@ -3,11 +3,14 @@ package com.romafrihet.server.lesson
 import com.romafrihet.server.TeacherFlowFixture
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.lesson.command.AttemptCommand
+import com.romafrihet.server.lesson.command.LessonOpeningCommand
+import com.romafrihet.server.lesson.command.QuestionCommand
 import io.mockk.every
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.transaction.support.TransactionSynchronizationManager
+import java.util.UUID
 
 /** 시간이 걸린 규칙은 고정 시계를 쓸 수 없는 통합 경로라, 시간이 흐르지 않는 조건만 여기서 본다. */
 class AttemptFlowTest : TeacherFlowFixture() {
@@ -114,7 +117,7 @@ class AttemptFlowTest : TeacherFlowFixture() {
         val started = attemptService.start(AttemptCommand.Start(studentId, classroomId, 1, 0))
         val correctId = requireNotNull(started.current).question.options.single { it.isCorrect }.id
         openingService.close(
-            com.romafrihet.server.lesson.command.LessonOpeningCommand.Change(teacherId, classroomId, 1),
+            LessonOpeningCommand.Change(teacherId, classroomId, 1),
         )
 
         val attempt =
@@ -127,7 +130,7 @@ class AttemptFlowTest : TeacherFlowFixture() {
     fun `차시를 닫으면 새 문제는 시작할 수 없다`() {
         val classroomId = openedClassroom()
         openingService.close(
-            com.romafrihet.server.lesson.command.LessonOpeningCommand.Change(teacherId, classroomId, 1),
+            LessonOpeningCommand.Change(teacherId, classroomId, 1),
         )
 
         assertErrorCode(ErrorCode.LESSON_NOT_OPEN) {
@@ -196,7 +199,7 @@ class AttemptFlowTest : TeacherFlowFixture() {
         val classroomId = openedClassroom()
 
         assertErrorCode(ErrorCode.FORBIDDEN) {
-            attemptService.findAttempt(AttemptCommand.Query(java.util.UUID.randomUUID(), classroomId, 1))
+            attemptService.findAttempt(AttemptCommand.Query(UUID.randomUUID(), classroomId, 1))
         }
     }
 
@@ -223,7 +226,7 @@ class AttemptFlowTest : TeacherFlowFixture() {
     }
 
     private fun createExplainedQuestion() = questionService.create(
-        com.romafrihet.server.lesson.command.QuestionCommand.Create(
+        QuestionCommand.Create(
             userId = teacherId,
             courseId = courseId,
             lessonNumber = 1,

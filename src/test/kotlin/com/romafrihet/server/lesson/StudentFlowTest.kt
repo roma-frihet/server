@@ -138,7 +138,6 @@ class StudentFlowTest : TeacherFlowFixture() {
     fun `닫은 차시는 학생에게 숨기고 마감한 차시는 목록에 보인다`() {
         val classroomId = enrolledClassroom()
         createQuestion(lessonNumber = 1)
-        val query = AttemptCommand.Query(studentId, classroomId, 1)
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
 
         openingService.close(LessonOpeningCommand.Change(teacherId, classroomId, 1))
