@@ -22,18 +22,29 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("${ApiPaths.TEACHER_V1}/courses/{courseId}/lessons")
 class LessonTeacherController(private val lessonService: LessonService) : BaseController {
-    @Operation(summary = "차시 목록", description = "차시별 문제 수와 반별 상태를 함께 내립니다.")
+    @Operation(
+        operationId = "findLessons",
+        summary = "차시 목록",
+        description = "차시별 문제 수와 반별 상태를 함께 내립니다.",
+    )
     @GetMapping
     fun findAll(@PathVariable courseId: Long): List<LessonResponse.Result> =
         lessonService.findAll(LessonCommand.Query(getUserId(), courseId)).map(LessonResponse.Result::of)
 
-    @Operation(summary = "차시 추가", description = "차시 번호는 마지막 번호 다음으로 정해집니다.")
+    @Operation(
+        operationId = "createLesson",
+        summary = "차시 추가",
+        description = "차시 번호는 마지막 번호 다음으로 정해집니다.",
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(@PathVariable courseId: Long, @Valid @RequestBody request: LessonRequest.Save): LessonResponse.Result =
         LessonResponse.Result.of(lessonService.create(request.toCreateCommand(getUserId(), courseId)))
 
-    @Operation(summary = "차시 이름 수정")
+    @Operation(
+        operationId = "renameLesson",
+        summary = "차시 이름 수정",
+    )
     @PatchMapping("/{lessonNumber}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun rename(

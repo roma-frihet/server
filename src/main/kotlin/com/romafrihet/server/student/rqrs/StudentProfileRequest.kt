@@ -34,8 +34,9 @@ class StudentProfileRequest private constructor() {
         @field:Size(max = 50)
         val name: String?,
     ) {
-        fun toCommand(userId: UUID) = StudentProfileCommand.Create(
+        fun toCommand(userId: UUID, loginEmail: String?) = StudentProfileCommand.Create(
             userId = userId,
+            loginEmail = loginEmail,
             schoolId = requireNotNull(schoolId),
             grade = requireNotNull(grade),
             classNumber = requireNotNull(classNumber),

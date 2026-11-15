@@ -8,8 +8,10 @@ import org.springframework.http.converter.HttpMessageNotReadableException
 import org.springframework.validation.FieldError
 import org.springframework.web.HttpRequestMethodNotSupportedException
 import org.springframework.web.bind.MethodArgumentNotValidException
+import org.springframework.web.bind.MissingServletRequestParameterException
 import org.springframework.web.bind.annotation.ExceptionHandler
 import org.springframework.web.bind.annotation.RestControllerAdvice
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException
 import org.springframework.web.multipart.MaxUploadSizeExceededException
 import org.springframework.web.servlet.resource.NoResourceFoundException
 
@@ -52,6 +54,15 @@ class GlobalExceptionHandler {
 
     @ExceptionHandler(HttpMessageNotReadableException::class)
     fun handleNotReadable(): ProblemDetail = ErrorCode.INVALID_REQUEST_BODY.toProblemDetail()
+
+    /** 쿼리 파라미터가 빠졌거나 타입이 맞지 않는 경우다. 없으면 500으로 나간다. */
+    @ExceptionHandler(MissingServletRequestParameterException::class)
+    fun handleMissingParameter(e: MissingServletRequestParameterException): ProblemDetail =
+        ErrorCode.INVALID_VALUE.toProblemDetail("${e.parameterName}: 필수 값입니다.")
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException::class)
+    fun handleTypeMismatch(e: MethodArgumentTypeMismatchException): ProblemDetail =
+        ErrorCode.INVALID_VALUE.toProblemDetail("${e.name}: 값의 형식이 올바르지 않습니다.")
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException::class)
     fun handleMethodNotSupported(): ProblemDetail = ErrorCode.METHOD_NOT_ALLOWED.toProblemDetail()

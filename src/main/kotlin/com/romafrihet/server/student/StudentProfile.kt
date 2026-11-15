@@ -56,6 +56,19 @@ class StudentProfile private constructor(
         protected set
 
     /** 2학년 1반 1번은 20101이다. */
+    @Column(name = "must_change_password", nullable = false)
+    var mustChangePassword: Boolean = false
+        protected set
+
+    /** 교사가 초기화하면 임시 비밀번호가 되고, 학생이 새로 정할 때까지 표시가 남는다. */
+    fun markPasswordReset() {
+        mustChangePassword = true
+    }
+
+    fun markPasswordChanged() {
+        mustChangePassword = false
+    }
+
     fun studentNumber(): String = "%d%02d%02d".format(grade, classNumber, seatNumber)
 
     companion object {

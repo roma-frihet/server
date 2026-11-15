@@ -7,9 +7,10 @@ data class MyPageProfileDto(val name: String, val schoolId: Long, val schoolName
 data class MyPageCourseDto(
     val id: Long,
     val grade: Int,
-    val subject: String,
+    val subjectId: Long,
+    val subjectName: String,
     val lessonCount: Int,
     val classrooms: List<MyPageClassroomDto>,
 )
 
-data class MyPageClassroomDto(val id: Long, val name: String)
+data class MyPageClassroomDto(val id: Long, val classNo: Int)

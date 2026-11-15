@@ -26,6 +26,9 @@ class QuestionImageUrlResolver(
                 content = question.content,
                 imageId = question.imageId,
                 imageUrl = question.imageId?.let(urls::get),
+                timeLimitSec = question.timeLimitSec,
+                explanation = question.explanation,
+                displayOrder = question.displayOrder,
                 options =
                 question.options.map { option ->
                     QuestionOptionDto(

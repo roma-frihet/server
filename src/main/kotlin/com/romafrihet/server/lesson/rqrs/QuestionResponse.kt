@@ -36,6 +36,9 @@ class QuestionResponse private constructor() {
         val content: String?,
         val imageId: Long?,
         val imageUrl: String?,
+        val timeLimitSec: Int,
+        val explanation: String?,
+        val displayOrder: Int,
         val options: List<Option>,
     ) {
         companion object {
@@ -46,6 +49,9 @@ class QuestionResponse private constructor() {
                 content = dto.content,
                 imageId = dto.imageId,
                 imageUrl = dto.imageUrl,
+                timeLimitSec = dto.timeLimitSec,
+                explanation = dto.explanation,
+                displayOrder = dto.displayOrder,
                 options = dto.options.map(Option::of),
             )
         }
@@ -80,15 +86,17 @@ class QuestionResponse private constructor() {
         val type: QuestionType,
         val content: String?,
         val imageUrl: String?,
+        val timeLimitSec: Int,
         val options: List<StudentOption>,
     ) {
         companion object {
-            /** 주관식 옵션은 정답 자체이므로 비워서 내린다. */
+            /** 주관식 옵션은 정답 자체이므로 비워서 내린다. 해설은 제출 전에 주지 않는다. */
             fun of(dto: QuestionDto) = StudentResult(
                 id = dto.id,
                 type = dto.type,
                 content = dto.content,
                 imageUrl = dto.imageUrl,
+                timeLimitSec = dto.timeLimitSec,
                 options =
                 when (dto.type) {
                     QuestionType.MULTIPLE_CHOICE -> dto.options.map(StudentOption::of)

@@ -5,6 +5,6 @@ import com.romafrihet.server.lesson.projection.LessonScoreProjection
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.Pageable
 
-interface LessonSubmissionRepositoryExtension {
+interface AttemptRepositoryExtension {
     fun queryScores(query: LessonScoreQueryDto, pageable: Pageable): Page<LessonScoreProjection>
 }

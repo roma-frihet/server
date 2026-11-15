@@ -10,6 +10,8 @@ import com.romafrihet.server.lesson.command.LessonOpeningCommand
 import com.romafrihet.server.lesson.dto.ClassroomLessonStatusDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
+import java.time.LocalDateTime
 import java.util.UUID
 
 @Service
@@ -19,9 +21,10 @@ class LessonOpeningService(
     private val lessonOpeningRepository: LessonOpeningRepository,
     private val questionRepository: QuestionRepository,
     private val lessonRepository: LessonRepository,
+    private val clock: Clock,
 ) {
     fun findStatuses(userId: UUID): List<ClassroomLessonStatusDto> {
-        val classrooms = classroomRepository.findAllByCourseUserIdOrderByNameAsc(userId)
+        val classrooms = classroomRepository.findAllByCourseUserIdOrderByCourseIdAscClassNoAsc(userId)
         val openings =
             lessonOpeningRepository
                 .findAllByClassroomIdIn(classrooms.map { requireNotNull(it.id) })
@@ -54,9 +57,11 @@ class LessonOpeningService(
         }
 
         if (previous != null) {
-            previous.reopen()
+            previous.reopen(LocalDateTime.now(clock))
         } else {
-            lessonOpeningRepository.save(LessonOpening.create(classroom, command.lessonNumber))
+            lessonOpeningRepository.save(
+                LessonOpening.create(classroom, command.lessonNumber, LocalDateTime.now(clock)),
+            )
         }
     }
 
@@ -66,7 +71,7 @@ class LessonOpeningService(
         val opening =
             lessonOpeningRepository.findByClassroomIdAndLessonNumber(requireNotNull(classroom.id), command.lessonNumber)
         assertCheck(opening != null && opening.isOpen) { ErrorCode.LESSON_NOT_OPEN }
-        opening.close()
+        opening.close(LocalDateTime.now(clock))
     }
 
     @Transactional
@@ -75,7 +80,7 @@ class LessonOpeningService(
         val opening =
             lessonOpeningRepository.findByClassroomIdAndLessonNumber(requireNotNull(classroom.id), command.lessonNumber)
                 ?: throw BusinessException(ErrorCode.LESSON_NOT_OPEN)
-        opening.finish()
+        opening.finish(LocalDateTime.now(clock))
     }
 
     /** 열린 차시가 있으면 그 차시, 없으면 열었던 차시의 다음 번호가 현재 차시다. 마지막 차시 뒤에는 null이다. */
@@ -90,7 +95,7 @@ class LessonOpeningService(
         return ClassroomLessonStatusDto(
             classroomId = requireNotNull(classroom.id),
             courseId = requireNotNull(classroom.course.id),
-            classroomName = classroom.name,
+            classNo = classroom.classNo,
             currentLessonNumber = open?.lessonNumber ?: next.takeIf { it <= lastLessonNumber },
             latestLessonNumber = open?.lessonNumber ?: latest,
             isOpen = open != null,

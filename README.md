@@ -2,6 +2,8 @@
 
 Spring Boot 4.1 + Kotlin 2.3 + JPA(QueryDSL) + Supabase(PostgreSQL, Auth) 백엔드.
 
+프론트엔드를 붙인다면 [docs/frontend/README.md](docs/frontend/README.md)부터 읽습니다. 서비스 흐름과 화면별 API를 담았습니다.
+
 ## 요구 사항
 
 개발은 WSL Ubuntu에서 한다. 아래 도구는 모두 WSL 안에서 쓸 수 있어야 한다.
@@ -92,11 +94,12 @@ python3 tools/api-tester/serve.py # 3. 테스터
 
 | 탭 | 할 일 |
 |---|---|
-| 계정 | 처음이면 `교사 계정 만들기`, `학생 계정 만들기`를 누르고 로그인한다. 학교를 검색하고 교사 정보와 학생 정보를 저장한다 |
-| 수업·반·코드 | 수업과 반을 만들어 선택하고 합류 코드를 발급한다. 코드는 3분간 유효하다 |
-| 차시·문제 | 차시를 만들어 선택하고 문제를 추가한 뒤 선택한 반에 연다 |
-| 합류·승인 | 학생이 코드를 입력하고 교사가 승인한다 |
-| 학생 풀이 | 학생이 문제를 풀어 제출한다. 차시를 마감하면 결과를 볼 수 있다 |
+| 계정 | 먼저 학교를 검색한다(학생 계정이 학교와 학번에서 만들어진다). 처음이면 `교사 계정 만들기`, `학생 계정 만들기`를 누르고 로그인한 뒤 교사 정보와 학생 정보를 저장한다 |
+| 수업·반·코드 | `과목 불러오기`로 목록을 받아 수업을 만들고, 반 번호(1~20)로 반을 만든다. 참여 코드는 5분간 유효하다 |
+| 차시·문제 | 차시를 만들어 선택하고 제한 시간과 해설을 넣어 문제를 추가한 뒤 선택한 반에 연다 |
+| 합류 | 학생이 코드를 입력하면 바로 연결된다. 승인 절차는 없고, 교사는 잘못 들어온 학생을 내보낼 수 있다 |
+| 학생 풀이 | 문제를 하나씩 시작해 풀고 제출한다. 제한 시간이 지나면 미응답으로 확정된다. 차시를 마감하면 정답과 해설을 볼 수 있다 |
+| 학생 리포트 | 차시별 내 점수와 반 평균, 마감한 차시에서 틀린 문제를 본다. 다른 학생의 점수는 보이지 않는다 |
 | 대시보드·학생 관리 | 대시보드, 학생 관리, 학생 점수 조회, 마이페이지를 확인한다 |
 
 대부분의 동작은 위쪽에 표시된 선택한 수업, 반, 차시에 적용된다. 이미지 업로드에는 `SUPABASE_SERVICE_ROLE_KEY`와 Private 버킷 `question-images`가 필요하다. 토큰은 1시간이면 만료되므로 그때 다시 로그인한다.
@@ -112,7 +115,7 @@ python3 tools/api-tester/serve.py # 3. 테스터
 
 - `127.0.0.1`에만 바인딩하므로 다른 PC에서 접속할 수 없고, 원격 서버를 지정하면 실행을 거부한다. 운영 환경에서 쓰지 않는다.
 - 키는 저장소에 없다. 실행할 때 `npx supabase status`로 로컬 키를 읽는다.
-- 화면에 미리 채워진 `teacher@test.com`, `student@test.com`, `test1234!`는 로컬 테스트 전용 값이다.
+- 화면에 미리 채워진 `teacher@test.com`, `test1234!`는 로컬 테스트 전용 값이다. 학생 계정은 학교와 학번에서 자동으로 만들어진다.
 - 서버 jar에 포함되지 않는다.
 
 ### 문제 해결
@@ -141,6 +144,21 @@ python3 tools/api-tester/serve.py # 3. 테스터
 - Controller에서는 `BaseController.getUserId()`로 사용자 ID(UUID, = `auth.users.id`)를 꺼낸다.
 - 인증 없이 열려 있는 경로: `/actuator/health`, Swagger. `/api/v1/teacher/**`는 `ROLE_TEACHER`가 필요하고, 나머지는 모두 인증 필요 (`security/SecurityConfig.kt`).
 - `ROLE_TEACHER`는 JWT의 `app_metadata.role`이 `teacher`일 때만 부여한다 (`security/SupabaseJwtAuthenticationConverter.kt`).
+
+### 학생은 학번으로 로그인한다
+
+Supabase Auth는 이메일만 받으므로, 프론트가 학번을 이메일 모양으로 바꿔 가입과 로그인에 쓴다. 학생에게는 학번만 보인다.
+
+```
+s{schoolId}-{학년}{반 2자리}{번호 2자리}@{app.student.login-email-domain}
+예) 7번 학교 2학년 1반 1번 → s7-20101@students.roma-frihet.app
+```
+
+- 학교를 함께 담는 이유는 학교가 다르면 학번이 겹치기 때문이다. `student_profiles`의 유일 제약과 같은 네 값을 쓴다.
+- 도메인은 `STUDENT_LOGIN_EMAIL_DOMAIN`으로 바꾼다. **프론트의 가입 규칙과 반드시 같아야 한다.**
+- 서버는 가입에 끼지 않는다. 대신 `POST /api/v1/student-profiles`에서 토큰의 `email`이 적어낸 학교·학번과 맞는지 확인한다. 다르면 `SP004`다 (`student/StudentLoginEmailPolicy.kt`).
+- Supabase 프로젝트의 **이메일 인증(confirmation)은 꺼야 한다.** 받을 수 없는 주소라 확인 메일이 영영 처리되지 않는다. 로컬은 `supabase/config.toml`의 `enable_confirmations = false`로 이미 꺼져 있다.
+- 가입은 Supabase 계정 생성과 가입 정보 저장 두 단계다. 중간에 끊기면 `GET /api/v1/student-profiles/me`의 `profile`이 `null`이므로, 프론트가 가입 정보 입력 화면으로 다시 보낸다.
 
 ## DB 마이그레이션
 

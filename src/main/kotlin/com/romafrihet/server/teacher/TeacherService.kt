@@ -46,9 +46,11 @@ class TeacherService(
 
     fun findMyPage(userId: UUID): MyPageDto {
         val profile = teacherProfileRepository.findByUserId(userId)
-        val courses = courseRepository.findAllByUserIdOrderByGradeAscSubjectAsc(userId)
+        val courses = courseRepository.findAllByUserIdOrderByGradeAscSubjectDisplayOrderAsc(userId)
         val classrooms =
-            classroomRepository.findAllByCourseUserIdOrderByNameAsc(userId).groupBy { requireNotNull(it.course.id) }
+            classroomRepository
+                .findAllByCourseUserIdOrderByCourseIdAscClassNoAsc(userId)
+                .groupBy { requireNotNull(it.course.id) }
         val lessonCounts =
             lessonRepository
                 .findAllByCourseIdIn(courses.map { requireNotNull(it.id) })
@@ -65,11 +67,12 @@ class TeacherService(
                 MyPageCourseDto(
                     id = courseId,
                     grade = course.grade,
-                    subject = course.subject,
+                    subjectId = requireNotNull(course.subject.id),
+                    subjectName = course.subject.name,
                     lessonCount = lessonCounts[courseId] ?: 0,
                     classrooms =
                     classrooms[courseId].orEmpty().map {
-                        MyPageClassroomDto(id = requireNotNull(it.id), name = it.name)
+                        MyPageClassroomDto(id = requireNotNull(it.id), classNo = it.classNo)
                     },
                 )
             },

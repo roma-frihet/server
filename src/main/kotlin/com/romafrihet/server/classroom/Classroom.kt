@@ -17,7 +17,7 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "classrooms")
-class Classroom private constructor(course: Course, name: String) : BaseTimeEntity() {
+class Classroom private constructor(course: Course, classNo: Int) : BaseTimeEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "classrooms_seq")
     @SequenceGenerator(name = "classrooms_seq", sequenceName = "classrooms_seq", allocationSize = 50)
@@ -28,8 +28,8 @@ class Classroom private constructor(course: Course, name: String) : BaseTimeEnti
     var course: Course = course
         protected set
 
-    @Column(nullable = false, length = 50)
-    var name: String = name
+    @Column(name = "class_no", nullable = false)
+    var classNo: Int = classNo
         protected set
 
     @Column(name = "join_code", length = 8)
@@ -54,6 +54,6 @@ class Classroom private constructor(course: Course, name: String) : BaseTimeEnti
 
     companion object {
         fun create(course: Course, command: ClassroomCommand.Create): Classroom =
-            Classroom(course = course, name = command.name)
+            Classroom(course = course, classNo = command.classNo)
     }
 }

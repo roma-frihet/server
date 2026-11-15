@@ -2,7 +2,6 @@ package com.romafrihet.server.classroom
 
 import com.romafrihet.server.classroom.command.ClassroomCommand
 import com.romafrihet.server.classroom.command.ClassroomMembershipCommand
-import com.romafrihet.server.classroom.rqrs.ClassroomMembershipRequest
 import com.romafrihet.server.classroom.rqrs.ClassroomMembershipResponse
 import com.romafrihet.server.classroom.rqrs.ClassroomRequest
 import com.romafrihet.server.classroom.rqrs.ClassroomResponse
@@ -11,7 +10,6 @@ import com.romafrihet.server.common.web.BaseController
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
-import org.springdoc.core.annotations.ParameterObject
 import org.springframework.http.HttpStatus
 import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
@@ -29,62 +27,64 @@ class ClassroomTeacherController(
     private val classroomService: ClassroomService,
     private val classroomMembershipService: ClassroomMembershipService,
 ) : BaseController {
-    @Operation(summary = "반 생성", description = "반은 수업에 속합니다. 합류 코드는 수업 + 반마다 발급합니다.")
+    @Operation(
+        operationId = "createClassroom",
+        summary = "반 생성",
+        description = "반은 수업에 속합니다. 합류 코드는 수업 + 반마다 발급합니다.",
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(@Valid @RequestBody request: ClassroomRequest.Create): ClassroomResponse.Result =
         ClassroomResponse.Result.of(classroomService.create(request.toCommand(getUserId())))
 
-    @Operation(summary = "내 반 목록")
+    @Operation(
+        operationId = "findClassrooms",
+        summary = "내 반 목록",
+    )
     @GetMapping
     fun findAll(): List<ClassroomResponse.Result> =
         classroomService.findAll(getUserId()).map(ClassroomResponse.Result::of)
 
-    @Operation(summary = "합류 코드 발급", description = "코드는 3분간 유효하고, 다시 발급하면 이전 코드는 바로 무효가 됩니다.")
+    @Operation(
+        operationId = "issueJoinCode",
+        summary = "합류 코드 발급",
+        description = "코드는 5분간 유효하고, 다시 발급하면 이전 코드는 바로 무효가 됩니다.",
+    )
     @PostMapping("/{classroomId}/join-code")
     fun issueJoinCode(@PathVariable classroomId: Long): ClassroomResponse.Result = ClassroomResponse.Result.of(
         classroomService.issueJoinCode(ClassroomCommand.IssueJoinCode(getUserId(), classroomId)),
     )
 
-    @Operation(summary = "합류 코드 끄기", description = "이미 합류한 학생은 그대로 유지됩니다.")
+    @Operation(
+        operationId = "closeJoinCode",
+        summary = "합류 코드 끄기",
+        description = "이미 합류한 학생은 그대로 유지됩니다.",
+    )
     @DeleteMapping("/{classroomId}/join-code")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun closeJoinCode(@PathVariable classroomId: Long) =
         classroomService.closeJoinCode(ClassroomCommand.IssueJoinCode(getUserId(), classroomId))
 
-    @Operation(summary = "반 합류 요청 목록")
+    @Operation(
+        operationId = "findClassroomMemberships",
+        summary = "반 학생 목록",
+        description = "코드로 연결된 학생입니다. 승인 절차는 없습니다.",
+    )
     @GetMapping("/{classroomId}/memberships")
-    fun findMemberships(
-        @PathVariable classroomId: Long,
-        @ParameterObject query: ClassroomMembershipRequest.Query,
-    ): List<ClassroomMembershipResponse.Result> = classroomMembershipService
-        .findAllForTeacher(query.toCommand(getUserId(), classroomId))
-        .map(ClassroomMembershipResponse.Result::of)
-
-    @Operation(summary = "대기 중인 합류 요청 모두 승인")
-    @PostMapping("/{classroomId}/memberships/approve-all")
-    fun approveAll(@PathVariable classroomId: Long): List<ClassroomMembershipResponse.Result> =
+    fun findMemberships(@PathVariable classroomId: Long): List<ClassroomMembershipResponse.Result> =
         classroomMembershipService
-            .approveAll(ClassroomMembershipCommand.ApproveAll(getUserId(), classroomId))
+            .findAllForTeacher(ClassroomMembershipCommand.Query(getUserId(), classroomId))
             .map(ClassroomMembershipResponse.Result::of)
 
-    @Operation(summary = "합류 요청 승인")
-    @PostMapping("/{classroomId}/memberships/{membershipId}/approve")
-    fun approve(
-        @PathVariable classroomId: Long,
-        @PathVariable membershipId: Long,
-    ): ClassroomMembershipResponse.Result = ClassroomMembershipResponse.Result.of(
-        classroomMembershipService.approve(
-            ClassroomMembershipCommand.Decide(getUserId(), classroomId, membershipId),
-        ),
+    @Operation(
+        operationId = "removeClassroomStudent",
+        summary = "학생 내보내기",
+        description = "코드를 잘못 넣어 들어온 학생을 반에서 뺍니다. 그 반에서 푼 기록도 함께 지워집니다.",
     )
-
-    @Operation(summary = "합류 요청 거절")
-    @PostMapping("/{classroomId}/memberships/{membershipId}/reject")
-    fun reject(@PathVariable classroomId: Long, @PathVariable membershipId: Long): ClassroomMembershipResponse.Result =
-        ClassroomMembershipResponse.Result.of(
-            classroomMembershipService.reject(
-                ClassroomMembershipCommand.Decide(getUserId(), classroomId, membershipId),
-            ),
+    @DeleteMapping("/{classroomId}/memberships/{membershipId}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun removeStudent(@PathVariable classroomId: Long, @PathVariable membershipId: Long) =
+        classroomMembershipService.removeStudent(
+            ClassroomMembershipCommand.RemoveStudent(getUserId(), classroomId, membershipId),
         )
 }

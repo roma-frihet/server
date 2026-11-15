@@ -25,10 +25,12 @@ interface QuestionRepository : JpaRepository<Question, Long> {
         select distinct q from Question q
         left join fetch q.options
         where q.course.id = :courseId and q.lessonNumber = :lessonNumber
-        order by q.id
+        order by q.displayOrder
         """,
     )
     fun findAllWithOptions(courseId: Long, lessonNumber: Int): List<Question>
+
+    fun countByCourseIdAndLessonNumber(courseId: Long, lessonNumber: Int): Int
 
     @Query("select q from Question q left join fetch q.options where q.id = :id and q.course.userId = :userId")
     fun findWithOptions(id: Long, userId: UUID): Question?

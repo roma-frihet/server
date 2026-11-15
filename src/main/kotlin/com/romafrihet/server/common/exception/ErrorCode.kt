@@ -27,12 +27,13 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     // Auth
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AU001", "인증이 필요합니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "AU002", "권한이 없습니다."),
+    AUTH_PROVIDER_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "AU003", "인증 서비스를 사용할 수 없습니다."),
+    PASSWORD_SAME_AS_CURRENT(HttpStatus.BAD_REQUEST, "AU004", "지금 쓰는 비밀번호와 다르게 정해야 합니다."),
 
     // Classroom
-    CLASSROOM_NAME_DUPLICATED(HttpStatus.CONFLICT, "CL001", "같은 이름의 반이 이미 있습니다."),
+    CLASSROOM_DUPLICATED(HttpStatus.CONFLICT, "CL001", "같은 번호의 반이 이미 있습니다."),
     JOIN_CODE_INVALID(HttpStatus.BAD_REQUEST, "CL002", "합류 코드가 없거나 만료되었습니다."),
-    MEMBERSHIP_ALREADY_REQUESTED(HttpStatus.CONFLICT, "CL003", "이미 합류했거나 승인을 기다리는 반입니다."),
-    MEMBERSHIP_NOT_PENDING(HttpStatus.CONFLICT, "CL004", "승인 대기 중인 요청이 아닙니다."),
+    ALREADY_ENROLLED(HttpStatus.CONFLICT, "CL003", "이미 연결된 수업입니다."),
     JOIN_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "CL005", "시간이 지난 합류 코드입니다."),
     CLASSROOM_HAS_RECORDS(HttpStatus.CONFLICT, "CL006", "학생이나 차시 기록이 있는 반은 삭제할 수 없습니다."),
 
@@ -44,19 +45,27 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     LESSON_ALREADY_OPEN(HttpStatus.CONFLICT, "LS001", "이 반에 이미 열린 차시가 있습니다."),
     LESSON_NOT_OPEN(HttpStatus.CONFLICT, "LS002", "열려 있는 차시가 아닙니다."),
     LESSON_HAS_NO_QUESTIONS(HttpStatus.CONFLICT, "LS003", "문제가 없는 차시는 열 수 없습니다."),
-    LESSON_LOCKED_BY_OPENING(HttpStatus.CONFLICT, "LS004", "열렸거나 마감했거나 제출이 있는 차시의 문제는 변경할 수 없습니다."),
+    LESSON_LOCKED_BY_OPENING(HttpStatus.CONFLICT, "LS004", "열렸거나 마감했거나 제출이 있는 차시에는 문제를 더하거나 지울 수 없습니다."),
     QUESTION_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "LS005", "문제 글이나 이미지가 필요합니다."),
     QUESTION_OPTIONS_INVALID(HttpStatus.BAD_REQUEST, "LS006", "보기 또는 정답 구성이 올바르지 않습니다."),
     QUESTION_IMAGE_NOT_USABLE(HttpStatus.BAD_REQUEST, "LS007", "사용할 수 없는 이미지입니다."),
     QUESTION_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "LS008", "PNG, JPEG, WebP 이미지만 올릴 수 있습니다."),
     LESSON_FINISHED(HttpStatus.CONFLICT, "LS009", "마감한 차시입니다."),
-    SUBMISSION_ALREADY_EXISTS(HttpStatus.CONFLICT, "LS010", "이미 제출한 차시입니다."),
     SUBMISSION_ANSWER_INVALID(HttpStatus.BAD_REQUEST, "LS011", "이 차시의 문제나 보기가 아닌 답안입니다."),
+    QUESTION_LOCKED_BY_SUBMISSION(HttpStatus.CONFLICT, "LS012", "제출이 있는 문제는 글과 해설만 고칠 수 있습니다."),
+    ATTEMPT_OUT_OF_ORDER(HttpStatus.CONFLICT, "LS013", "앞 문제부터 순서대로 풀어야 합니다."),
+    ATTEMPT_NOT_IN_QUESTION(HttpStatus.CONFLICT, "LS014", "시작하지 않은 문제입니다."),
+    ATTEMPT_TIME_OVER(HttpStatus.CONFLICT, "LS015", "제한 시간이 지난 문제입니다."),
+    ATTEMPT_ALREADY_DONE(HttpStatus.CONFLICT, "LS016", "이미 다 푼 차시입니다."),
+    ATTEMPT_NOT_DONE(HttpStatus.CONFLICT, "LS017", "아직 다 풀지 않은 차시입니다."),
+    ANSWER_REQUIRED(HttpStatus.BAD_REQUEST, "LS018", "답을 고르거나 입력해야 합니다."),
+    ANSWER_NOT_FINALIZED(HttpStatus.CONFLICT, "LS019", "아직 확정되지 않은 문제는 결과를 바꿀 수 없습니다."),
 
     // Student profile
     STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),
     STUDENT_NUMBER_DUPLICATED(HttpStatus.CONFLICT, "SP002", "이미 가입한 학번입니다."),
     STUDENT_PROFILE_REQUIRED(HttpStatus.CONFLICT, "SP003", "학생 가입 정보를 먼저 저장해 주세요."),
+    STUDENT_LOGIN_EMAIL_MISMATCH(HttpStatus.BAD_REQUEST, "SP004", "로그인 계정과 학번이 맞지 않습니다."),
 
     // Storage
     STORAGE_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "ST001", "파일 저장소를 사용할 수 없습니다."),
