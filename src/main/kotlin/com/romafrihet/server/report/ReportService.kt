@@ -44,7 +44,11 @@ class ReportService(
     private val classroomRecordsReader: ClassroomRecordsReader,
     private val classroomProgressCalculator: ClassroomProgressCalculator,
 ) {
-    /** 통계는 반 전체 기준이고, 검색어는 학생 목록에만 적용한다. */
+    /**
+     * 통계는 반 전체 기준이고, 검색어는 학생 목록에만 적용한다.
+     * 읽기 전에 시간이 지난 응답을 확정하므로 readOnly가 아니다. readOnly면 확정이 저장되지 않는다.
+     */
+    @Transactional
     fun findStudents(command: ReportCommand.Students): ClassroomProgressDto {
         val classroom = classroomRepository.getOwned(command.classroomId, command.userId)
         val records =
@@ -54,6 +58,7 @@ class ReportService(
     }
 
     /** 학생 한 명의 차시별 점수와 최근 차시의 문제별 결과다. 결과를 고치려면 attemptAnswerId가 필요하다. */
+    @Transactional
     fun findStudentDetail(command: ReportCommand.StudentDetail): StudentDetailDto {
         val classroom = classroomRepository.getOwned(command.classroomId, command.userId)
         val membership =
@@ -111,8 +116,10 @@ class ReportService(
             }
 
     /** 수업 범위에서만 조회하므로 다른 교사의 반을 지정하면 빈 페이지가 된다. */
+    @Transactional
     fun findScores(command: ReportCommand.Scores): Page<StudentLessonScoreDto> {
         courseRepository.getOwned(command.courseId, command.userId)
+        classroomRecordsReader.finalizeExpired(command.courseId)
         return attemptRepository
             .queryScores(
                 LessonScoreQueryDto(
@@ -135,6 +142,7 @@ class ReportService(
             }
     }
 
+    @Transactional
     fun findDashboard(command: ReportCommand.Dashboard): DashboardDto {
         courseRepository.getOwned(command.courseId, command.userId)
         val classrooms = classroomRepository.findAllByCourseIdOrderByClassNoAsc(command.courseId)

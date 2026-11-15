@@ -27,11 +27,16 @@ class ClassroomRecordsReader(
     private val attemptFinalizer: AttemptFinalizer,
     private val questionRepository: QuestionRepository,
 ) {
+    /** 격자까지 읽을 필요 없이 확정만 할 때 쓴다. 쓰기이므로 호출 측 트랜잭션은 readOnly가 아니어야 한다. */
+    fun finalizeExpired(courseId: Long) {
+        attemptFinalizer.finalizeExpired(
+            attemptRepository.findAllByClassroomCourseId(courseId),
+            questionCounts(courseId),
+        )
+    }
+
     fun read(courseId: Long, classroomIds: List<Long>): ClassroomRecords {
-        val questionCounts =
-            questionRepository
-                .findQuestionCounts(courseId)
-                .associate { it.lessonNumber to it.questionCount.toInt() }
+        val questionCounts = questionCounts(courseId)
         // 학생이 돌아오지 않아도 점수가 맞도록, 세기 전에 시간이 지난 응답부터 확정한다.
         attemptFinalizer.finalizeExpired(attemptRepository.findAllByClassroomIdIn(classroomIds), questionCounts)
         return ClassroomRecords(
@@ -53,4 +58,8 @@ class ClassroomRecordsReader(
             questionCounts = questionCounts,
         )
     }
+
+    private fun questionCounts(courseId: Long): Map<Int, Int> = questionRepository
+        .findQuestionCounts(courseId)
+        .associate { it.lessonNumber to it.questionCount.toInt() }
 }
