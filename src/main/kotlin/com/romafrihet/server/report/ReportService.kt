@@ -1,10 +1,14 @@
 package com.romafrihet.server.report
 
 import com.romafrihet.server.classroom.Classroom
+import com.romafrihet.server.classroom.ClassroomMembershipRepository
 import com.romafrihet.server.classroom.ClassroomRepository
 import com.romafrihet.server.classroom.getOwned
+import com.romafrihet.server.common.exception.BusinessException
+import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.course.CourseRepository
 import com.romafrihet.server.course.getOwned
+import com.romafrihet.server.lesson.AttemptAnswerRepository
 import com.romafrihet.server.lesson.AttemptRepository
 import com.romafrihet.server.lesson.Lesson
 import com.romafrihet.server.lesson.LessonRepository
@@ -17,7 +21,10 @@ import com.romafrihet.server.report.dto.DashboardDto
 import com.romafrihet.server.report.dto.DashboardLessonDto
 import com.romafrihet.server.report.dto.DashboardLessonStatusDto
 import com.romafrihet.server.report.dto.DashboardSetupDto
+import com.romafrihet.server.report.dto.LessonScoreDto
 import com.romafrihet.server.report.dto.LiveLessonDto
+import com.romafrihet.server.report.dto.StudentAnswerDto
+import com.romafrihet.server.report.dto.StudentDetailDto
 import com.romafrihet.server.report.dto.StudentLessonScoreDto
 import com.romafrihet.server.report.dto.WatchStudentDto
 import org.springframework.data.domain.Page
@@ -32,6 +39,8 @@ class ReportService(
     private val classroomRepository: ClassroomRepository,
     private val lessonRepository: LessonRepository,
     private val attemptRepository: AttemptRepository,
+    private val attemptAnswerRepository: AttemptAnswerRepository,
+    private val classroomMembershipRepository: ClassroomMembershipRepository,
     private val classroomRecordsReader: ClassroomRecordsReader,
     private val classroomProgressCalculator: ClassroomProgressCalculator,
 ) {
@@ -43,6 +52,63 @@ class ReportService(
         val progress = classroomProgressCalculator.calculate(command.classroomId, classroom.classNo, records)
         return progress.copy(students = progress.students.filter { command.keyword in it.studentName })
     }
+
+    /** 학생 한 명의 차시별 점수와 최근 차시의 문제별 결과다. 결과를 고치려면 attemptAnswerId가 필요하다. */
+    fun findStudentDetail(command: ReportCommand.StudentDetail): StudentDetailDto {
+        val classroom = classroomRepository.getOwned(command.classroomId, command.userId)
+        val membership =
+            classroomMembershipRepository.findByIdAndClassroomId(command.membershipId, command.classroomId)
+                ?: throw BusinessException(ErrorCode.NOT_FOUND)
+        val records = classroomRecordsReader.read(requireNotNull(classroom.course.id), listOf(command.classroomId))
+        val openedLessons = records.openings[command.classroomId].orEmpty().map { it.lessonNumber }.sorted()
+        val mine = records.scores[command.classroomId].orEmpty()[membership.userId].orEmpty()
+        val answered = openedLessons.filter { (mine[it]?.answeredCount ?: 0) > 0 }
+        val latest = openedLessons.lastOrNull()
+        return StudentDetailDto(
+            membershipId = requireNotNull(membership.id),
+            classroomId = command.classroomId,
+            classNo = classroom.classNo,
+            studentName = membership.studentName,
+            studentNumber = membership.studentNumber,
+            scores =
+            openedLessons.map { lessonNumber ->
+                LessonScoreDto(
+                    lessonNumber = lessonNumber,
+                    correctCount =
+                    mine[lessonNumber]?.takeIf { it.answeredCount > 0 }?.correctCount?.toInt(),
+                    questionCount = records.questionCounts[lessonNumber] ?: 0,
+                    classAverageCorrect =
+                    classroomProgressCalculator.averageCorrect(
+                        records.scores[command.classroomId].orEmpty(),
+                        lessonNumber,
+                    ),
+                )
+            },
+            totalCorrectCount = answered.sumOf { mine.getValue(it).correctCount.toInt() },
+            totalQuestionCount = answered.sumOf { records.questionCounts[it] ?: 0 },
+            latestLessonNumber = latest,
+            latestAnswers = latest?.let { toAnswers(command.classroomId, it, membership.userId) }.orEmpty(),
+        )
+    }
+
+    /** 시작하지 않은 문제는 행이 없어 담기지 않는다. 교사도 그 문제는 고칠 수 없다. */
+    private fun toAnswers(classroomId: Long, lessonNumber: Int, userId: java.util.UUID): List<StudentAnswerDto> =
+        attemptRepository
+            .findByClassroomIdAndLessonNumberAndUserId(classroomId, lessonNumber, userId)
+            ?.id
+            ?.let(attemptAnswerRepository::findAllByAttemptIdOrderByQuestionIndexAsc)
+            .orEmpty()
+            .map {
+                StudentAnswerDto(
+                    attemptAnswerId = requireNotNull(it.id),
+                    questionIndex = it.questionIndex,
+                    questionId = requireNotNull(it.question.id),
+                    content = it.question.content,
+                    result = it.finalResult,
+                    isOverridden = it.isOverridden,
+                    byTimeout = it.byTimeout,
+                )
+            }
 
     /** 수업 범위에서만 조회하므로 다른 교사의 반을 지정하면 빈 페이지가 된다. */
     fun findScores(command: ReportCommand.Scores): Page<StudentLessonScoreDto> {

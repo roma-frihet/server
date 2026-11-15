@@ -41,4 +41,16 @@ class ReportTeacherController(private val reportService: ReportService) : BaseCo
         @Valid @ParameterObject query: ReportRequest.StudentQuery,
     ): ReportResponse.Classroom =
         ReportResponse.Classroom.of(reportService.findStudents(query.toCommand(getUserId(), classroomId)))
+
+    @Operation(
+        summary = "학생 상세",
+        description = "차시별 점수와 반 평균, 최근 차시의 문제별 결과를 내립니다. 결과를 고칠 때 attemptAnswerId를 씁니다.",
+    )
+    @GetMapping("/classrooms/{classroomId}/students/{membershipId}")
+    fun findStudentDetail(
+        @PathVariable classroomId: Long,
+        @PathVariable membershipId: Long,
+    ): ReportResponse.StudentDetail = ReportResponse.StudentDetail.of(
+        reportService.findStudentDetail(ReportCommand.StudentDetail(getUserId(), classroomId, membershipId)),
+    )
 }

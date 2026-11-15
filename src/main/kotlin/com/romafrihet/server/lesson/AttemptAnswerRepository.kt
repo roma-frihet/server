@@ -3,6 +3,7 @@ package com.romafrihet.server.lesson
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import java.time.LocalDateTime
+import java.util.UUID
 
 interface AttemptAnswerRepository : JpaRepository<AttemptAnswer, Long> {
     fun findByAttemptIdAndQuestionIndex(attemptId: Long, questionIndex: Int): AttemptAnswer?
@@ -16,6 +17,8 @@ interface AttemptAnswerRepository : JpaRepository<AttemptAnswer, Long> {
         attemptIds: Collection<Long>,
         threshold: LocalDateTime,
     ): List<AttemptAnswer>
+
+    fun findByIdAndAttemptClassroomCourseUserId(id: Long, userId: UUID): AttemptAnswer?
 
     fun deleteAllByAttemptId(attemptId: Long)
 }

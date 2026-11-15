@@ -2,6 +2,7 @@ package com.romafrihet.server.report.rqrs
 
 import com.romafrihet.server.common.web.PageInfo
 import com.romafrihet.server.lesson.LessonStatus
+import com.romafrihet.server.lesson.QuestionResult
 import com.romafrihet.server.report.StudentProgressStatus
 import com.romafrihet.server.report.dto.ClassroomProgressDto
 import com.romafrihet.server.report.dto.DashboardClassroomDto
@@ -11,6 +12,8 @@ import com.romafrihet.server.report.dto.DashboardLessonStatusDto
 import com.romafrihet.server.report.dto.DashboardSetupDto
 import com.romafrihet.server.report.dto.LessonScoreDto
 import com.romafrihet.server.report.dto.LiveLessonDto
+import com.romafrihet.server.report.dto.StudentAnswerDto
+import com.romafrihet.server.report.dto.StudentDetailDto
 import com.romafrihet.server.report.dto.StudentLessonScoreDto
 import com.romafrihet.server.report.dto.StudentProgressDto
 import com.romafrihet.server.report.dto.WatchStudentDto
@@ -246,6 +249,59 @@ class ReportResponse private constructor() {
                 classrooms = dto.classrooms.map(DashboardClassroom::of),
                 droppedStudents = dto.droppedStudents.map(WatchStudent::of),
                 notRespondedStudents = dto.notRespondedStudents.map(WatchStudent::of),
+            )
+        }
+    }
+
+    /** 교사가 결과를 고칠 때 attemptAnswerId를 쓴다. */
+    @Schema(name = "ReportResponseStudentAnswer")
+    data class StudentAnswer(
+        val attemptAnswerId: Long,
+        val questionIndex: Int,
+        val questionId: Long,
+        val content: String?,
+        val result: QuestionResult,
+        val isOverridden: Boolean,
+        val byTimeout: Boolean,
+    ) {
+        companion object {
+            fun of(dto: StudentAnswerDto) = StudentAnswer(
+                attemptAnswerId = dto.attemptAnswerId,
+                questionIndex = dto.questionIndex,
+                questionId = dto.questionId,
+                content = dto.content,
+                result = dto.result,
+                isOverridden = dto.isOverridden,
+                byTimeout = dto.byTimeout,
+            )
+        }
+    }
+
+    @Schema(name = "ReportResponseStudentDetail")
+    data class StudentDetail(
+        val membershipId: Long,
+        val classroomId: Long,
+        val classNo: Int,
+        val studentName: String,
+        val studentNumber: String,
+        val scores: List<Score>,
+        val totalCorrectCount: Int,
+        val totalQuestionCount: Int,
+        @Schema(nullable = true) val latestLessonNumber: Int?,
+        val latestAnswers: List<StudentAnswer>,
+    ) {
+        companion object {
+            fun of(dto: StudentDetailDto) = StudentDetail(
+                membershipId = dto.membershipId,
+                classroomId = dto.classroomId,
+                classNo = dto.classNo,
+                studentName = dto.studentName,
+                studentNumber = dto.studentNumber,
+                scores = dto.scores.map(Score::of),
+                totalCorrectCount = dto.totalCorrectCount,
+                totalQuestionCount = dto.totalQuestionCount,
+                latestLessonNumber = dto.latestLessonNumber,
+                latestAnswers = dto.latestAnswers.map(StudentAnswer::of),
             )
         }
     }

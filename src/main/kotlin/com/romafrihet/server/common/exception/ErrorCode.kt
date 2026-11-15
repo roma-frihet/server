@@ -57,6 +57,7 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     ATTEMPT_ALREADY_DONE(HttpStatus.CONFLICT, "LS016", "이미 다 푼 차시입니다."),
     ATTEMPT_NOT_DONE(HttpStatus.CONFLICT, "LS017", "아직 다 풀지 않은 차시입니다."),
     ANSWER_REQUIRED(HttpStatus.BAD_REQUEST, "LS018", "답을 고르거나 입력해야 합니다."),
+    ANSWER_NOT_FINALIZED(HttpStatus.CONFLICT, "LS019", "아직 확정되지 않은 문제는 결과를 바꿀 수 없습니다."),
 
     // Student profile
     STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),

@@ -15,4 +15,6 @@ class ReportCommand private constructor() {
     )
 
     data class Students(val userId: UUID, val classroomId: Long, val keyword: String)
+
+    data class StudentDetail(val userId: UUID, val classroomId: Long, val membershipId: Long)
 }
