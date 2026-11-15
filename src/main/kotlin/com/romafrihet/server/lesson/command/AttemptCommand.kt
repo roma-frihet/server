@@ -15,4 +15,6 @@ class AttemptCommand private constructor() {
         val optionId: Long?,
         val text: String?,
     )
+
+    data class DeleteAllInClassroom(val classroomId: Long, val userId: UUID)
 }

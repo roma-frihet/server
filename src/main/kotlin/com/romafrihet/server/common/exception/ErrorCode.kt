@@ -49,7 +49,6 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     QUESTION_IMAGE_NOT_USABLE(HttpStatus.BAD_REQUEST, "LS007", "사용할 수 없는 이미지입니다."),
     QUESTION_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "LS008", "PNG, JPEG, WebP 이미지만 올릴 수 있습니다."),
     LESSON_FINISHED(HttpStatus.CONFLICT, "LS009", "마감한 차시입니다."),
-    SUBMISSION_ALREADY_EXISTS(HttpStatus.CONFLICT, "LS010", "이미 제출한 차시입니다."),
     SUBMISSION_ANSWER_INVALID(HttpStatus.BAD_REQUEST, "LS011", "이 차시의 문제나 보기가 아닌 답안입니다."),
     QUESTION_LOCKED_BY_SUBMISSION(HttpStatus.CONFLICT, "LS012", "제출이 있는 문제는 글과 해설만 고칠 수 있습니다."),
     ATTEMPT_OUT_OF_ORDER(HttpStatus.CONFLICT, "LS013", "앞 문제부터 순서대로 풀어야 합니다."),

@@ -10,6 +10,8 @@ import com.romafrihet.server.lesson.command.AttemptCommand
 import com.romafrihet.server.lesson.dto.AttemptDto
 import com.romafrihet.server.lesson.dto.CurrentQuestionDto
 import com.romafrihet.server.lesson.dto.FinalizedAnswerDto
+import com.romafrihet.server.lesson.dto.LessonResultDto
+import com.romafrihet.server.lesson.dto.LessonResultQuestionDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.PlatformTransactionManager
 import org.springframework.transaction.support.TransactionTemplate
@@ -96,6 +98,41 @@ class AttemptService(
         attempt.completeQuestion(lesson.questions.size, now)
         snapshot(lesson)
     }.toDto()
+
+    /** 마감한 차시만 전체 문제와 정답, 해설을 공개한다. */
+    fun findResult(command: AttemptCommand.Query): LessonResultDto {
+        val (questions, answers, hasAttempt) = inTransaction {
+            val lesson = load(command.userId, command.classroomId, command.lessonNumber)
+            assertCheck(lesson.opening.status == LessonStatus.FINISHED) { ErrorCode.NOT_FOUND }
+            val byQuestion =
+                lesson.attempt?.id
+                    ?.let(attemptAnswerRepository::findAllByAttemptIdOrderByQuestionIndexAsc)
+                    .orEmpty()
+                    .associateBy { requireNotNull(it.question.id) }
+            Triple(lesson.questions, byQuestion, lesson.attempt != null)
+        }
+        val dtos = questionImageUrlResolver.toDtos(questions).associateBy { it.id }
+        return LessonResultDto(
+            lessonNumber = command.lessonNumber,
+            correctCount =
+            if (hasAttempt) answers.values.count { it.finalResult == QuestionResult.RIGHT } else null,
+            questionCount = questions.size,
+            questions =
+            questions.map { question ->
+                val questionId = requireNotNull(question.id)
+                val answer = answers[questionId]
+                val correct = question.options.firstOrNull { it.isCorrect }
+                LessonResultQuestionDto(
+                    question = dtos.getValue(questionId),
+                    result = answer?.finalResult ?: QuestionResult.NONE,
+                    selectedOptionId = answer?.optionId,
+                    answerText = answer?.answerText,
+                    correctOptionId = correct?.id,
+                    correctAnswer = correct?.content,
+                )
+            },
+        )
+    }
 
     private fun <T> inTransaction(block: () -> T): T = requireNotNull(transactionTemplate.execute { block() })
 

@@ -4,9 +4,9 @@ import com.romafrihet.server.TeacherFlowFixture
 import com.romafrihet.server.classroom.command.ClassroomCommand
 import com.romafrihet.server.classroom.command.ClassroomMembershipCommand
 import com.romafrihet.server.common.exception.ErrorCode
+import com.romafrihet.server.lesson.command.AttemptCommand
 import com.romafrihet.server.lesson.command.LessonOpeningCommand
 import com.romafrihet.server.lesson.command.QuestionCommand
-import com.romafrihet.server.lesson.command.SubmissionCommand
 import com.romafrihet.server.student.StudentProfileService
 import com.romafrihet.server.student.command.StudentProfileCommand
 import com.romafrihet.server.student.rqrs.StudentProfileResponse
@@ -24,7 +24,7 @@ class StudentFlowTest : TeacherFlowFixture() {
     private lateinit var studentService: LessonStudentService
 
     @Autowired
-    private lateinit var submissionService: LessonSubmissionService
+    private lateinit var attemptService: AttemptService
 
     private fun saveProfile(userId: UUID = studentId, name: String = "홍길동") = studentProfileService.create(
         StudentProfileCommand.Create(userId, schoolId, 2, 1, seatNumbers.incrementAndGet(), name),
@@ -131,55 +131,66 @@ class StudentFlowTest : TeacherFlowFixture() {
     }
 
     @Test
-    fun `제출은 한 번이고 마감 후 내 답과 정답을 볼 수 있다`() {
+    fun `마감한 차시에서 내 답과 정답과 해설을 본다`() {
         val classroomId = enrolledClassroom()
         val multipleChoice = createQuestion(lessonNumber = 1)
         val shortAnswer = createShortAnswer(lessonNumber = 1)
-        val correctOption = questionService
-            .find(QuestionCommand.Get(teacherId, multipleChoice))
-            .options
-            .first { it.isCorrect }
-            .id
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
-        val answers =
-            listOf(
-                SubmissionCommand.Answer(multipleChoice, correctOption, null),
-                SubmissionCommand.Answer(shortAnswer, null, " co 2 "),
-            )
-        val submit = SubmissionCommand.Create(studentId, classroomId, 1, answers)
-        val result = SubmissionCommand.Query(studentId, classroomId, 1)
+        val query = AttemptCommand.Query(studentId, classroomId, 1)
 
-        assertErrorCode(ErrorCode.NOT_FOUND) { submissionService.findResult(result) }
-        submissionService.submit(submit)
+        assertErrorCode(ErrorCode.NOT_FOUND) { attemptService.findResult(query) }
 
-        assertErrorCode(ErrorCode.SUBMISSION_ALREADY_EXISTS) { submissionService.submit(submit) }
+        solveCorrectly(classroomId, index = 0)
+        solveCorrectly(classroomId, index = 1)
         openingService.finish(LessonOpeningCommand.Change(teacherId, classroomId, 1))
-        val found = submissionService.findResult(result)
+
+        val found = attemptService.findResult(query)
         assertThat(found.correctCount).isEqualTo(2)
-        assertThat(found.questions.map { it.isCorrect }).containsExactly(true, true)
-        assertErrorCode(ErrorCode.LESSON_NOT_OPEN) { submissionService.submit(submit) }
+        assertThat(found.questionCount).isEqualTo(2)
+        assertThat(found.questions.map { it.result })
+            .containsExactly(QuestionResult.RIGHT, QuestionResult.RIGHT)
+        assertThat(found.questions.map { it.question.id }).containsExactly(multipleChoice, shortAnswer)
+        assertThat(found.questions.first().correctOptionId).isNotNull()
     }
 
     @Test
-    fun `이 차시 문제가 아닌 답안은 거절하고 대기 학생은 제출할 수 없다`() {
+    fun `응시하지 않은 학생은 마감 차시에서 점수가 비어 있다`() {
         val classroomId = enrolledClassroom()
-        val question = createQuestion(lessonNumber = 1)
+        createQuestion(lessonNumber = 1)
+        openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
+        openingService.finish(LessonOpeningCommand.Change(teacherId, classroomId, 1))
+
+        val found = attemptService.findResult(AttemptCommand.Query(studentId, classroomId, 1))
+
+        assertThat(found.correctCount).isNull()
+        assertThat(found.questions.single().result).isEqualTo(QuestionResult.NONE)
+    }
+
+    @Test
+    fun `이 차시 문제의 보기가 아니면 거절하고 연결되지 않은 학생은 풀 수 없다`() {
+        val classroomId = enrolledClassroom()
+        createQuestion(lessonNumber = 1)
         val other = createQuestion(lessonNumber = 2)
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
-        val answer = SubmissionCommand.Answer(other, null, null)
+        attemptService.start(AttemptCommand.Start(studentId, classroomId, 1, 0))
+        val otherOptionId =
+            questionService.find(QuestionCommand.Get(teacherId, other)).options.first().id
 
         assertErrorCode(ErrorCode.SUBMISSION_ANSWER_INVALID) {
-            submissionService.submit(SubmissionCommand.Create(studentId, classroomId, 1, listOf(answer)))
-        }
-        assertErrorCode(ErrorCode.SUBMISSION_ANSWER_INVALID) {
-            val duplicate = SubmissionCommand.Answer(question, null, null)
-            submissionService.submit(
-                SubmissionCommand.Create(studentId, classroomId, 1, listOf(duplicate, duplicate)),
-            )
+            attemptService.submit(AttemptCommand.Answer(studentId, classroomId, 1, 0, otherOptionId, null))
         }
         assertErrorCode(ErrorCode.FORBIDDEN) {
-            submissionService.submit(SubmissionCommand.Create(UUID.randomUUID(), classroomId, 1, emptyList()))
+            attemptService.findAttempt(AttemptCommand.Query(UUID.randomUUID(), classroomId, 1))
         }
+    }
+
+    private fun solveCorrectly(classroomId: Long, index: Int) {
+        val started = attemptService.start(AttemptCommand.Start(studentId, classroomId, 1, index))
+        val question = requireNotNull(started.current).question
+        val optionId =
+            if (question.type == QuestionType.MULTIPLE_CHOICE) question.options.first().id else null
+        val text = if (question.type == QuestionType.SHORT_ANSWER) " co 2 " else null
+        attemptService.submit(AttemptCommand.Answer(studentId, classroomId, 1, index, optionId, text))
     }
 
     private companion object {
