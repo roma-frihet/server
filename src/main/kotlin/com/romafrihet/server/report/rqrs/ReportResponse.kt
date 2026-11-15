@@ -1,5 +1,6 @@
 package com.romafrihet.server.report.rqrs
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.romafrihet.server.common.web.PageInfo
 import com.romafrihet.server.lesson.LessonStatus
 import com.romafrihet.server.lesson.QuestionResult
@@ -261,6 +262,7 @@ class ReportResponse private constructor() {
         val questionId: Long,
         val content: String?,
         val result: QuestionResult,
+        @get:JsonProperty("isOverridden")
         val isOverridden: Boolean,
         val byTimeout: Boolean,
     ) {
