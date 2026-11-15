@@ -119,6 +119,9 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
     <div class="row"><button data-act="studentLessons">선택한 반의 차시 보기</button></div>
     <div id="studentLessons"></div></div>
   <div class="card"><h2>문제 <span class="muted" id="solveLabel"></span></h2><div id="solveArea" class="muted">차시를 고르세요.</div></div>
+  <div class="card"><h2>내 학습 리포트</h2>
+    <div class="row"><button data-act="myReport">리포트 보기</button><button data-act="myWrongQuestions">틀린 문제 전체</button></div>
+    <div id="myReport"></div></div>
 </section>
 
 <section id="report">
@@ -166,6 +169,7 @@ const classroomId=()=>need(S.classroomId,'반을 먼저 선택하세요.');
 const PHASE={READY:'다음 문제 대기',IN_QUESTION:'푸는 중',DONE:'끝'};
 const RESULT={RIGHT:'✔',WRONG:'✘',NONE:'–'};
 const RESULT_LABEL={RIGHT:'맞음',WRONG:'틀림',NONE:'미응답'};
+const wrongList=xs=>xs.map(x=>`<div class="q"><b>${RESULT[x.result]} ${x.lessonNumber}차시 ${x.questionIndex+1}번</b> ${esc(x.content??'')}<p class="muted">정답: ${esc(x.correctAnswer??'-')}</p>${x.explanation?`<p class="muted">해설: ${esc(x.explanation)}</p>`:''}</div>`).join('');
 const attemptPath=()=>`/api/v1/classrooms/${classroomId()}/lessons/${S.solve}/attempt`;
 function answerBody(){
   const q=document.querySelector('#solveArea [data-type]');
@@ -297,6 +301,19 @@ const actions={
     } else if(d.nextIndex>=d.total)body='<p>남은 문제가 없습니다. 상태를 새로고침해 보세요.</p>';
     else body=`<div class="row"><button class="primary" data-act="startQuestion" data-index="${d.nextIndex}">${d.nextIndex+1}번 문제 시작${d.nextTimeLimitSec?` (${d.nextTimeLimitSec}초)`:''}</button><button data-act="refreshAttempt">상태 새로고침</button></div>`;
     $('solveArea').innerHTML=head+last+body;
+  },
+  async myReport(){
+    const d=await call('student','GET',`/api/v1/classrooms/${classroomId()}/report`);
+    $('myReport').innerHTML=`<p><b>${d.grade}학년 ${esc(d.subjectName)} ${d.classNo}반</b> <span class="muted">전체 정답 ${d.totalCorrectCount} / ${d.totalQuestionCount}</span></p>`
+      +(d.openLesson
+        ?`<div class="q"><b>지금 열린 차시: ${d.openLesson.lessonNumber}. ${esc(d.openLesson.title)}</b><p class="muted">문제 ${d.openLesson.questionCount}개 · 합계 ${d.openLesson.totalTimeLimitSec}초 · ${PHASE[d.openLesson.phase]} (${d.openLesson.nextIndex}번째)</p></div>`
+        :'<p class="muted">지금 열린 차시가 없어요.</p>')
+      +`<table><tr><th>차시</th><th>내 점수</th><th>반 평균</th></tr>${d.scores.map(s=>`<tr><td>${s.lessonNumber}차시</td><td>${s.correctCount??'-'} / ${s.questionCount}</td><td>${avg(s.classAverageCorrect)}</td></tr>`).join('')}</table>`
+      +(d.recentWrongQuestions.length?`<h3>최근 틀린 문제</h3>${wrongList(d.recentWrongQuestions)}`:'<p class="muted">틀린 문제가 없어요.</p>');
+  },
+  async myWrongQuestions(){
+    const d=await call('student','GET',`/api/v1/classrooms/${classroomId()}/report/wrong-questions`);
+    $('myReport').innerHTML=d.length?`<h3>틀린 문제 ${d.length}개</h3>${wrongList(d)}`:'<p class="muted">마감한 차시에서 틀린 문제가 없어요.</p>';
   },
   async dashboard(){
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/dashboard`);
