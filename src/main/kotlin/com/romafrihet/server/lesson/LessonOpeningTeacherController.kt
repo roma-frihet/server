@@ -18,24 +18,39 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping(ApiPaths.TEACHER_V1)
 class LessonOpeningTeacherController(private val lessonOpeningService: LessonOpeningService) : BaseController {
-    @Operation(summary = "반별 현재 차시와 열림 현황")
+    @Operation(
+        operationId = "findLessonOpenings",
+        summary = "반별 현재 차시와 열림 현황",
+    )
     @GetMapping("/lesson-openings")
     fun findStatuses(): List<LessonOpeningResponse.Result> =
         lessonOpeningService.findStatuses(getUserId()).map(LessonOpeningResponse.Result::of)
 
-    @Operation(summary = "차시 열기", description = "닫았던 차시도 같은 API로 다시 엽니다.")
+    @Operation(
+        operationId = "openLesson",
+        summary = "차시 열기",
+        description = "닫았던 차시도 같은 API로 다시 엽니다.",
+    )
     @PostMapping("/classrooms/{classroomId}/lessons/{lessonNumber}/open")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun open(@PathVariable classroomId: Long, @PathVariable lessonNumber: Int) =
         lessonOpeningService.open(LessonOpeningCommand.Change(getUserId(), classroomId, lessonNumber))
 
-    @Operation(summary = "차시 마감", description = "마감하면 다시 열 수 없고, 학생은 내 답과 정답을 볼 수 있습니다.")
+    @Operation(
+        operationId = "finishLesson",
+        summary = "차시 마감",
+        description = "마감하면 다시 열 수 없고, 학생은 내 답과 정답을 볼 수 있습니다.",
+    )
     @PostMapping("/classrooms/{classroomId}/lessons/{lessonNumber}/finish")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun finish(@PathVariable classroomId: Long, @PathVariable lessonNumber: Int) =
         lessonOpeningService.finish(LessonOpeningCommand.Change(getUserId(), classroomId, lessonNumber))
 
-    @Operation(summary = "차시 닫기", description = "학생에게 숨깁니다. 다시 열 수 있습니다.")
+    @Operation(
+        operationId = "closeLesson",
+        summary = "차시 닫기",
+        description = "학생에게 숨깁니다. 다시 열 수 있습니다.",
+    )
     @PostMapping("/classrooms/{classroomId}/lessons/{lessonNumber}/close")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun close(@PathVariable classroomId: Long, @PathVariable lessonNumber: Int) =

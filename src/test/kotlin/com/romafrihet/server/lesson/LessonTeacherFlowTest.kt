@@ -41,7 +41,7 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `문제는 수업마다 따로 관리하고 다른 수업의 차시를 잠그지 않는다`() {
-        val classroomId = approvedClassroom()
+        val classroomId = joinedClassroom()
         val otherCourseId = createCourse("수학")
         addLesson(otherCourseId, "다른 수업 1차시")
         createQuestion(lessonNumber = 1)
@@ -57,7 +57,7 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `현재 차시는 열린 차시이고 닫으면 다음 차시가 된다`() {
-        val classroomId = approvedClassroom()
+        val classroomId = joinedClassroom()
         createQuestion(lessonNumber = 3)
 
         assertThat(openingService.findStatuses(teacherId).single().currentLessonNumber).isEqualTo(1)
@@ -74,7 +74,7 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `반에 열린 차시가 있으면 다른 차시를 열 수 없고 닫은 차시는 다시 열 수 있다`() {
-        val classroomId = approvedClassroom()
+        val classroomId = joinedClassroom()
         createQuestion(lessonNumber = 1)
         createQuestion(lessonNumber = 2)
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
@@ -90,7 +90,7 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `문제가 없는 차시는 열 수 없다`() {
-        val classroomId = approvedClassroom()
+        val classroomId = joinedClassroom()
 
         assertErrorCode(ErrorCode.LESSON_HAS_NO_QUESTIONS) {
             openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
@@ -99,7 +99,7 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `열린 차시의 문제는 추가 수정 삭제할 수 없다`() {
-        val classroomId = approvedClassroom()
+        val classroomId = joinedClassroom()
         val questionId = createQuestion()
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 3))
 
@@ -122,6 +122,8 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
                     type = QuestionType.MULTIPLE_CHOICE,
                     content = "그림을 고르시오",
                     imageId = null,
+                    timeLimitSec = 30,
+                    explanation = null,
                     options =
                     listOf(
                         choice(null, correct = true, imageId = kept.id),
@@ -138,6 +140,8 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
                 type = QuestionType.MULTIPLE_CHOICE,
                 content = "그림을 고르시오",
                 imageId = null,
+                timeLimitSec = 30,
+                explanation = null,
                 options = listOf(choice("첫째"), choice(null, correct = true, imageId = kept.id)),
             ),
         )
@@ -159,6 +163,8 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
             type = QuestionType.MULTIPLE_CHOICE,
             content = null,
             imageId = shared.id,
+            timeLimitSec = 30,
+            explanation = null,
             options = listOf(choice("가", correct = true), choice("나")),
         )
         val first = questionService.create(create)
@@ -183,6 +189,8 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
                     type = QuestionType.SHORT_ANSWER,
                     content = "광합성에 필요한 기체를 쓰시오.",
                     imageId = null,
+                    timeLimitSec = 30,
+                    explanation = null,
                     options = listOf(choice("이산화탄소", correct = true), choice("CO2", correct = true)),
                 ),
             )
@@ -209,6 +217,8 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
                     type = QuestionType.MULTIPLE_CHOICE,
                     content = null,
                     imageId = saveImage(UUID.randomUUID()).id,
+                    timeLimitSec = 30,
+                    explanation = null,
                     options = listOf(choice("가", correct = true), choice("나")),
                 ),
             )
@@ -226,6 +236,8 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
                     type = QuestionType.MULTIPLE_CHOICE,
                     content = "문제",
                     imageId = null,
+                    timeLimitSec = 30,
+                    explanation = null,
                     options = listOf(choice("가", correct = true), choice("나", correct = true)),
                 ),
             )

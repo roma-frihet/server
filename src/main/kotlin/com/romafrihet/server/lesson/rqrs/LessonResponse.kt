@@ -7,11 +7,11 @@ import io.swagger.v3.oas.annotations.media.Schema
 
 class LessonResponse private constructor() {
     @Schema(name = "LessonResponseClassroomStatus")
-    data class ClassroomStatus(val classroomId: Long, val classroomName: String, val status: LessonStatus) {
+    data class ClassroomStatus(val classroomId: Long, val classNo: Int, val status: LessonStatus) {
         companion object {
             fun of(dto: LessonClassroomStatusDto) = ClassroomStatus(
                 classroomId = dto.classroomId,
-                classroomName = dto.classroomName,
+                classNo = dto.classNo,
                 status = dto.status,
             )
         }

@@ -19,13 +19,20 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("${ApiPaths.TEACHER_V1}/courses")
 class CourseTeacherController(private val courseService: CourseService) : BaseController {
-    @Operation(summary = "수업 생성", description = "같은 과목이라도 학년이 다르면 다른 수업입니다.")
+    @Operation(
+        operationId = "createCourse",
+        summary = "수업 생성",
+        description = "같은 과목이라도 학년이 다르면 다른 수업입니다.",
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(@Valid @RequestBody request: CourseRequest.Create): CourseResponse.Result =
         CourseResponse.Result.of(courseService.create(request.toCommand(getUserId())))
 
-    @Operation(summary = "내 수업 목록")
+    @Operation(
+        operationId = "findCourses",
+        summary = "내 수업 목록",
+    )
     @GetMapping
     fun findAll(): List<CourseResponse.Result> = courseService.findAll(getUserId()).map(CourseResponse.Result::of)
 }

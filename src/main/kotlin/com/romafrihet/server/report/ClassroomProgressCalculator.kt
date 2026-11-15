@@ -2,59 +2,59 @@ package com.romafrihet.server.report
 
 import com.romafrihet.server.classroom.ClassroomMembership
 import com.romafrihet.server.lesson.LessonOpening
-import com.romafrihet.server.lesson.LessonSubmission
+import com.romafrihet.server.lesson.projection.AttemptScoreProjection
 import com.romafrihet.server.report.dto.ClassroomProgressDto
 import com.romafrihet.server.report.dto.LessonScoreDto
 import com.romafrihet.server.report.dto.StudentProgressDto
 import org.springframework.stereotype.Component
+import java.util.UUID
 
 /** 최근 차시는 이 반에 연 차시 중 번호가 가장 큰 차시다. */
 @Component
 class ClassroomProgressCalculator {
-    fun calculate(classroomId: Long, classroomName: String, records: ClassroomRecords): ClassroomProgressDto {
+    fun calculate(classroomId: Long, classNo: Int, records: ClassroomRecords): ClassroomProgressDto {
         val students = records.students[classroomId].orEmpty().sortedBy { it.studentNumber }
         val openedLessons = records.openings[classroomId].orEmpty().map(LessonOpening::lessonNumber).sorted()
-        val submissions = records.submissions[classroomId].orEmpty()
-        val byLesson = submissions.groupBy { it.lessonNumber }
-        val byStudent = submissions.groupBy { it.userId }
+        val scores = records.scores[classroomId].orEmpty()
         val latest = openedLessons.lastOrNull()
-        val latestResponses = latest?.let { byLesson[it] }.orEmpty()
         val progress =
-            students.map { student ->
-                toStudentProgress(
-                    student,
-                    openedLessons,
-                    byStudent[student.userId].orEmpty(),
-                    byLesson,
-                    records.questionCounts,
-                )
-            }
+            students.map { toStudentProgress(it, openedLessons, scores, records.questionCounts) }
         return ClassroomProgressDto(
             classroomId = classroomId,
-            classroomName = classroomName,
+            classNo = classNo,
             studentCount = students.size,
             latestLessonNumber = latest,
             latestQuestionCount = latest?.let { records.questionCounts[it] } ?: 0,
-            latestAverageCorrect = averageCorrect(latestResponses),
-            latestResponseCount = latestResponses.size,
+            latestAverageCorrect = averageCorrect(scores, latest),
+            latestResponseCount = latest?.let { lesson -> scores.count { answered(it.value[lesson]) } } ?: 0,
             watchStudentCount = progress.count { it.status != StudentProgressStatus.NORMAL },
             students = progress,
         )
     }
 
-    fun averageCorrect(submissions: List<LessonSubmission>): Double? =
-        submissions.takeIf { it.isNotEmpty() }?.map(LessonSubmission::correctCount)?.average()
+    /** 응답한 학생만 평균에 넣는다. 아무것도 답하지 않은 학생은 0점이 아니라 빠진다. */
+    fun averageCorrect(scores: Map<UUID, Map<Int, AttemptScoreProjection>>, lessonNumber: Int?): Double? {
+        if (lessonNumber == null) return null
+        return scores.values
+            .mapNotNull { it[lessonNumber] }
+            .filter(::answered)
+            .map { it.correctCount.toDouble() }
+            .takeIf { it.isNotEmpty() }
+            ?.average()
+    }
+
+    private fun answered(score: AttemptScoreProjection?): Boolean = (score?.answeredCount ?: 0) > 0
 
     private fun toStudentProgress(
         student: ClassroomMembership,
         openedLessons: List<Int>,
-        submissions: List<LessonSubmission>,
-        byLesson: Map<Int, List<LessonSubmission>>,
+        scores: Map<UUID, Map<Int, AttemptScoreProjection>>,
         questionCounts: Map<Int, Int>,
     ): StudentProgressDto {
-        val scores = submissions.associateBy { it.lessonNumber }
-        val latest = openedLessons.lastOrNull()?.let(scores::get)
-        val previous = openedLessons.dropLast(1).lastOrNull()?.let(scores::get)
+        val mine = scores[student.userId].orEmpty()
+        val answeredLessons = openedLessons.filter { answered(mine[it]) }
+        val latest = openedLessons.lastOrNull()?.let { mine[it] }?.takeIf(::answered)
+        val previous = openedLessons.dropLast(1).lastOrNull()?.let { mine[it] }?.takeIf(::answered)
         return StudentProgressDto(
             membershipId = requireNotNull(student.id),
             studentName = student.studentName,
@@ -63,32 +63,38 @@ class ClassroomProgressCalculator {
             openedLessons.takeLast(RECENT_LESSON_COUNT).map { lessonNumber ->
                 LessonScoreDto(
                     lessonNumber = lessonNumber,
-                    correctCount = scores[lessonNumber]?.correctCount,
+                    correctCount = mine[lessonNumber]?.takeIf(::answered)?.correctCount?.toInt(),
                     questionCount = questionCounts[lessonNumber] ?: 0,
-                    classAverageCorrect = averageCorrect(byLesson[lessonNumber].orEmpty()),
+                    classAverageCorrect = averageCorrect(scores, lessonNumber),
                 )
             },
-            latestCorrectCount = latest?.correctCount,
-            previousCorrectCount = previous?.correctCount,
-            totalCorrectCount = submissions.sumOf { it.correctCount },
-            totalQuestionCount = submissions.sumOf { it.questionCount },
-            status = statusOf(openedLessons, latest, previous),
+            latestCorrectCount = latest?.correctCount?.toInt(),
+            previousCorrectCount = previous?.correctCount?.toInt(),
+            totalCorrectCount = answeredLessons.sumOf { mine.getValue(it).correctCount.toInt() },
+            totalQuestionCount = answeredLessons.sumOf { questionCounts[it] ?: 0 },
+            status = statusOf(openedLessons, latest, previous, questionCounts),
         )
     }
 
     private fun statusOf(
         openedLessons: List<Int>,
-        latest: LessonSubmission?,
-        previous: LessonSubmission?,
+        latest: AttemptScoreProjection?,
+        previous: AttemptScoreProjection?,
+        questionCounts: Map<Int, Int>,
     ): StudentProgressStatus = when {
         openedLessons.isNotEmpty() && latest == null -> StudentProgressStatus.NOT_RESPONDED
-        latest != null && previous != null && rateOf(previous) - rateOf(latest) >= DROP_RATE ->
+        latest != null &&
+            previous != null &&
+            rateOf(previous, questionCounts) - rateOf(latest, questionCounts) >= DROP_RATE ->
             StudentProgressStatus.SCORE_DROPPED
+
         else -> StudentProgressStatus.NORMAL
     }
 
-    private fun rateOf(submission: LessonSubmission): Double =
-        if (submission.questionCount == 0) 0.0 else submission.correctCount.toDouble() / submission.questionCount
+    private fun rateOf(score: AttemptScoreProjection, questionCounts: Map<Int, Int>): Double {
+        val questionCount = questionCounts[score.lessonNumber] ?: 0
+        return if (questionCount == 0) 0.0 else score.correctCount.toDouble() / questionCount
+    }
 
     private companion object {
         const val RECENT_LESSON_COUNT = 6

@@ -18,7 +18,8 @@ import java.time.LocalDateTime
 
 @Entity
 @Table(name = "lesson_openings")
-class LessonOpening private constructor(classroom: Classroom, lessonNumber: Int) : BaseTimeEntity() {
+class LessonOpening private constructor(classroom: Classroom, lessonNumber: Int, openedAt: LocalDateTime) :
+    BaseTimeEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "lesson_openings_seq")
     @SequenceGenerator(name = "lesson_openings_seq", sequenceName = "lesson_openings_seq", allocationSize = 50)
@@ -34,7 +35,7 @@ class LessonOpening private constructor(classroom: Classroom, lessonNumber: Int)
         protected set
 
     @Column(name = "opened_at", nullable = false)
-    var openedAt: LocalDateTime = LocalDateTime.now()
+    var openedAt: LocalDateTime = openedAt
         protected set
 
     @Column(name = "closed_at")
@@ -56,24 +57,24 @@ class LessonOpening private constructor(classroom: Classroom, lessonNumber: Int)
                 else -> LessonStatus.OPEN
             }
 
-    fun reopen() {
+    fun reopen(now: LocalDateTime) {
         assertCheck(status == LessonStatus.CLOSED) { ErrorCode.LESSON_FINISHED }
-        openedAt = LocalDateTime.now()
+        openedAt = now
         closedAt = null
     }
 
-    fun close() {
-        closedAt = LocalDateTime.now()
+    fun close(now: LocalDateTime) {
+        closedAt = now
     }
 
-    fun finish() {
+    fun finish(now: LocalDateTime) {
         assertCheck(status != LessonStatus.FINISHED) { ErrorCode.LESSON_FINISHED }
-        val now = LocalDateTime.now()
         closedAt = closedAt ?: now
         finishedAt = now
     }
 
     companion object {
-        fun create(classroom: Classroom, lessonNumber: Int): LessonOpening = LessonOpening(classroom, lessonNumber)
+        fun create(classroom: Classroom, lessonNumber: Int, openedAt: LocalDateTime): LessonOpening =
+            LessonOpening(classroom, lessonNumber, openedAt)
     }
 }

@@ -4,7 +4,7 @@ import com.romafrihet.server.report.StudentProgressStatus
 
 data class ClassroomProgressDto(
     val classroomId: Long,
-    val classroomName: String,
+    val classNo: Int,
     val studentCount: Int,
     val latestLessonNumber: Int?,
     val latestQuestionCount: Int,

@@ -7,39 +7,29 @@ import org.springframework.data.jpa.repository.Query
 import java.util.UUID
 
 interface ClassroomMembershipRepository : JpaRepository<ClassroomMembership, Long> {
-    fun findByClassroomIdAndUserId(classroomId: Long, userId: UUID): ClassroomMembership?
-
     fun findByIdAndClassroomId(id: Long, classroomId: Long): ClassroomMembership?
 
     fun findAllByClassroomIdOrderByIdAsc(classroomId: Long): List<ClassroomMembership>
 
-    fun findAllByClassroomIdAndStatusOrderByIdAsc(
-        classroomId: Long,
-        status: MembershipStatus,
-    ): List<ClassroomMembership>
-
     @EntityGraph(attributePaths = ["classroom.course"])
     fun findAllByUserIdOrderByIdAsc(userId: UUID): List<ClassroomMembership>
 
-    fun existsByClassroomIdAndUserIdAndStatus(classroomId: Long, userId: UUID, status: MembershipStatus): Boolean
+    /** 한 수업에는 한 번만 연결한다. 반이 달라도 같은 수업이면 다시 넣을 수 없다. */
+    fun existsByClassroomCourseIdAndUserId(courseId: Long, userId: UUID): Boolean
+
+    fun existsByClassroomIdAndUserId(classroomId: Long, userId: UUID): Boolean
 
     fun existsByClassroomId(classroomId: Long): Boolean
 
-    fun findAllByClassroomIdInAndStatus(
-        classroomIds: Collection<Long>,
-        status: MembershipStatus,
-    ): List<ClassroomMembership>
+    fun findAllByClassroomIdIn(classroomIds: Collection<Long>): List<ClassroomMembership>
 
     @Query(
         """
         select new com.romafrihet.server.classroom.projection.ClassroomStudentCountProjection(m.classroom.id, count(m))
         from ClassroomMembership m
-        where m.classroom.id in :classroomIds and m.status = :status
+        where m.classroom.id in :classroomIds
         group by m.classroom.id
         """,
     )
-    fun findStudentCounts(
-        classroomIds: Collection<Long>,
-        status: MembershipStatus,
-    ): List<ClassroomStudentCountProjection>
+    fun findStudentCounts(classroomIds: Collection<Long>): List<ClassroomStudentCountProjection>
 }

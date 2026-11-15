@@ -3,6 +3,7 @@ package com.romafrihet.server.course
 import com.romafrihet.server.common.entity.BaseTimeEntity
 import com.romafrihet.server.course.command.CourseCommand
 import com.romafrihet.server.school.School
+import com.romafrihet.server.subject.Subject
 import jakarta.persistence.Column
 import jakarta.persistence.Entity
 import jakarta.persistence.FetchType
@@ -18,7 +19,7 @@ import java.util.UUID
 /** 교사 + 학년 + 과목 단위다. 차시와 문제는 수업에 속하고, 같은 수업의 반들이 공유한다. */
 @Entity
 @Table(name = "courses")
-class Course private constructor(userId: UUID, school: School, grade: Int, subject: String) : BaseTimeEntity() {
+class Course private constructor(userId: UUID, school: School, grade: Int, subject: Subject) : BaseTimeEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "courses_seq")
     @SequenceGenerator(name = "courses_seq", sequenceName = "courses_seq", allocationSize = 50)
@@ -37,12 +38,13 @@ class Course private constructor(userId: UUID, school: School, grade: Int, subje
     var grade: Int = grade
         protected set
 
-    @Column(nullable = false, updatable = false, length = 50)
-    var subject: String = subject
+    @ManyToOne(fetch = FetchType.LAZY, optional = false)
+    @JoinColumn(name = "subject_id", nullable = false, updatable = false)
+    var subject: Subject = subject
         protected set
 
     companion object {
-        fun create(school: School, command: CourseCommand.Create): Course =
-            Course(userId = command.userId, school = school, grade = command.grade, subject = command.subject)
+        fun create(school: School, subject: Subject, command: CourseCommand.Create): Course =
+            Course(userId = command.userId, school = school, grade = command.grade, subject = subject)
     }
 }

@@ -11,7 +11,7 @@ class LessonOpeningResponse private constructor() {
     data class Result(
         val classroomId: Long,
         val courseId: Long,
-        val classroomName: String,
+        val classNo: Int,
         val currentLessonNumber: Int?,
         val latestLessonNumber: Int?,
         val isOpen: Boolean,
@@ -20,7 +20,7 @@ class LessonOpeningResponse private constructor() {
             fun of(dto: ClassroomLessonStatusDto) = Result(
                 classroomId = dto.classroomId,
                 courseId = dto.courseId,
-                classroomName = dto.classroomName,
+                classNo = dto.classNo,
                 currentLessonNumber = dto.currentLessonNumber,
                 latestLessonNumber = dto.latestLessonNumber,
                 isOpen = dto.isOpen,
