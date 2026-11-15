@@ -161,6 +161,16 @@ const guard=fn=>async(...a)=>{try{return await fn(...a)}catch(e){if(!e.data)log(
 function need(value,msg){if(value==null||value===''){log('확인','',null,0,msg);throw new Error(msg)}return value}
 const courseId=()=>need(S.courseId,'수업을 먼저 선택하세요.');
 const classroomId=()=>need(S.classroomId,'반을 먼저 선택하세요.');
+const PHASE={READY:'다음 문제 대기',IN_QUESTION:'푸는 중',DONE:'끝'};
+const RESULT={RIGHT:'✔',WRONG:'✘',NONE:'–'};
+const attemptPath=()=>`/api/v1/classrooms/${classroomId()}/lessons/${S.solve}/attempt`;
+function answerBody(){
+  const q=document.querySelector('#solveArea [data-type]');
+  if(!q)return{};
+  return q.dataset.type==='SHORT_ANSWER'
+    ?{text:q.querySelector('.short').value}
+    :{optionId:+(document.querySelector('input[name=cur]:checked')?.value||0)||null};
+}
 const badge=s=>`<span class="badge ${esc(s)}">${esc({PLANNED:'예정',OPEN:'열림',CLOSED:'닫힘',FINISHED:'마감',NORMAL:'정상',SCORE_DROPPED:'점수 하락',NOT_RESPONDED:'미응답'}[s]||s)}</span>`;
 function exp(token){try{return new Date(JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp*1000)}catch(e){return null}}
 function refresh(){
@@ -240,20 +250,47 @@ const actions={
   async studentLessons(){const k=classroomId();const d=await call('student','GET',`/api/v1/classrooms/${k}/lessons`);$('studentLessons').innerHTML=d.length?`<table><tr><th>차시</th><th>상태</th><th></th></tr>${d.map(l=>`<tr><td>${l.lessonNumber}. ${esc(l.title)}</td><td>${badge(l.status)}</td><td><button class="primary" data-act="${l.status==='OPEN'?'startSolve':'showResult'}" data-id="${l.lessonNumber}">${l.status==='OPEN'?'문제 풀기':'결과 보기'}</button></td></tr>`).join('')}</table>`:'<p class="muted">보이는 차시가 없습니다. 닫힌 차시는 학생에게 보이지 않습니다.</p>'},
   async startSolve(el){
     const n=+el.dataset.id;S.solve=n;$('solveLabel').textContent=n+'차시';
-    const d=await call('student','GET',`/api/v1/classrooms/${classroomId()}/lessons/${n}/questions`);
-    $('solveArea').className='';
-    $('solveArea').innerHTML=d.map(q=>`<div class="q" data-q="${q.id}" data-type="${q.type}"><b>${esc(q.content??'')}</b>${q.imageUrl?`<img src="${esc(q.imageUrl)}" alt="지문 이미지">`:''}${q.type==='SHORT_ANSWER'?'<input class="short" placeholder="답 입력">':q.options.map(o=>`<label class="opt" style="flex-direction:row;gap:6px"><input type="radio" name="s${q.id}" value="${o.id}">${esc(o.content??'')}${o.imageUrl?`<img src="${esc(o.imageUrl)}" alt="보기 이미지">`:''}</label>`).join('')}</div>`).join('')+'<button class="primary" data-act="submit">제출 (1회)</button>';
-  },
-  async submit(){
-    const answers=[...document.querySelectorAll('#solveArea [data-q]')].map(q=>({questionId:+q.dataset.q,optionId:q.dataset.type==='SHORT_ANSWER'?null:+(q.querySelector('input:checked')?.value||0)||null,text:q.dataset.type==='SHORT_ANSWER'?q.querySelector('.short').value:null}));
-    await call('student','POST',`/api/v1/classrooms/${classroomId()}/lessons/${S.solve}/submission`,{answers});
-    $('solveArea').innerHTML='<p>제출했습니다. 점수는 마감 후 볼 수 있습니다.</p>';
+    await actions.renderAttempt(await call('student','GET',attemptPath()));
   },
   async showResult(el){
-    const n=+el.dataset.id;$('solveLabel').textContent=n+'차시 결과';
+    const n=+el.dataset.id;S.solve=n;$('solveLabel').textContent=n+'차시 결과';
     const d=await call('student','GET',`/api/v1/classrooms/${classroomId()}/lessons/${n}/result`);
     $('solveArea').className='';
-    $('solveArea').innerHTML=`<p><b>${d.correctCount??'미제출'}</b> / ${d.questionCount}문제</p>`+d.questions.map(x=>`<div class="q"><b>${x.isCorrect?'✔':'✘'} ${esc(x.question.content??'')}</b><ul>${x.question.options.map(o=>`<li>${o.isCorrect?'정답: ':''}${esc(o.content??'')}${o.id===x.selectedOptionId?' ← 내 답':''}</li>`).join('')}</ul>${x.answerText?`<p class="muted">내 답: ${esc(x.answerText)}</p>`:''}</div>`).join('');
+    $('solveArea').innerHTML=`<p><b>${d.correctCount??'미응시'}</b> / ${d.questionCount}문제</p>`+d.questions.map(x=>`<div class="q"><b>${RESULT[x.result]} ${esc(x.content??'')}</b>${x.imageUrl?`<img src="${esc(x.imageUrl)}" alt="지문 이미지">`:''}<ul>${x.options.map(o=>`<li>${o.id===x.correctOptionId?'정답: ':''}${esc(o.content??'')}${o.id===x.selectedOptionId?' ← 내 답':''}</li>`).join('')}</ul>${x.answerText?`<p class="muted">내 답: ${esc(x.answerText)}</p>`:''}${x.correctAnswer&&!x.options.length?`<p class="muted">정답: ${esc(x.correctAnswer)}</p>`:''}${x.explanation?`<p class="muted">해설: ${esc(x.explanation)}</p>`:''}</div>`).join('');
+  },
+  async refreshAttempt(){await actions.renderAttempt(await call('student','GET',attemptPath()))},
+  async startQuestion(el){
+    await actions.renderAttempt(await call('student','POST',`${attemptPath()}/questions/${el.dataset.index}/start`));
+  },
+  async draftAnswer(el){
+    await call('student','PUT',`${attemptPath()}/questions/${el.dataset.index}/draft`,answerBody());
+  },
+  async submitAnswer(el){
+    await actions.renderAttempt(
+      await call('student','POST',`${attemptPath()}/questions/${el.dataset.index}/submit`,answerBody()),
+    );
+  },
+  /** 응시 상태 하나로 화면을 그린다. 서버가 다음에 뭘 할 수 있는지 알려 준다. */
+  renderAttempt(d){
+    $('solveArea').className='';
+    const head=`<p class="muted">${d.nextIndex} / ${d.total}문제 · ${PHASE[d.phase]}${d.correctCount!=null?` · 맞힌 개수 ${d.correctCount}`:''}</p>`;
+    const last=d.last?`<div class="q"><b>${RESULT[d.last.result]} ${d.last.questionIndex+1}번 결과${d.last.byTimeout?' (시간 종료)':''}</b>${d.last.correctAnswer?`<p class="muted">정답: ${esc(d.last.correctAnswer)}</p>`:''}${d.last.explanation?`<p class="muted">해설: ${esc(d.last.explanation)}</p>`:''}</div>`:'';
+    let body;
+    if(d.phase==='DONE')body='<p>다 풀었습니다. 마감하면 결과를 볼 수 있습니다.</p>';
+    else if(d.phase==='IN_QUESTION'){
+      const q=d.current.question,i=d.current.questionIndex;
+      body=`<div class="q" data-type="${q.type}"><b>${i+1}. ${esc(q.content??'')}</b>`
+        +`<p class="muted"><span class="countdown-ms" data-left="${d.current.remainingMillis}">${Math.ceil(d.current.remainingMillis/1000)}</span>초 남음</p>`
+        +(q.imageUrl?`<img src="${esc(q.imageUrl)}" alt="지문 이미지">`:'')
+        +(q.type==='SHORT_ANSWER'
+          ?`<input class="short" placeholder="답 입력" value="${esc(d.current.draftText??'')}">`
+          :q.options.map(o=>`<label class="opt" style="flex-direction:row;gap:6px"><input type="radio" name="cur" value="${o.id}" ${o.id===d.current.draftOptionId?'checked':''}>${esc(o.content??'')}${o.imageUrl?`<img src="${esc(o.imageUrl)}" alt="보기 이미지">`:''}</label>`).join(''))
+        +`</div><div class="row"><button data-act="draftAnswer" data-index="${i}">임시 저장</button>`
+        +`<button class="primary" data-act="submitAnswer" data-index="${i}">제출</button>`
+        +`<button data-act="refreshAttempt">상태 새로고침</button></div>`;
+    } else if(d.nextIndex>=d.total)body='<p>남은 문제가 없습니다. 상태를 새로고침해 보세요.</p>';
+    else body=`<div class="row"><button class="primary" data-act="startQuestion" data-index="${d.nextIndex}">${d.nextIndex+1}번 문제 시작${d.nextTimeLimitSec?` (${d.nextTimeLimitSec}초)`:''}</button><button data-act="refreshAttempt">상태 새로고침</button></div>`;
+    $('solveArea').innerHTML=head+last+body;
   },
   async dashboard(){
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/dashboard`);
@@ -281,6 +318,12 @@ const actions={
   },
   clearLog(){$('log').innerHTML=''}
 };
+setInterval(()=>{
+  document.querySelectorAll('.countdown-ms[data-left]').forEach(el=>{
+    const left=Math.max(0,+el.getAttribute('data-left')-1000);
+    el.setAttribute('data-left',left);el.textContent=Math.ceil(left/1000);
+  });
+},1000);
 $('tabs').innerHTML=TABS.map(([id,t])=>`<button data-tab="${id}">${t}</button>`).join('');
 function tab(id){document.querySelectorAll('section').forEach(s=>s.classList.toggle('active',s.id===id));document.querySelectorAll('[data-tab]').forEach(b=>b.classList.toggle('active',b.dataset.tab===id))}
 document.addEventListener('click',e=>{
