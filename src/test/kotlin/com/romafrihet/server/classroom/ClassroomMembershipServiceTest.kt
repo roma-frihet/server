@@ -50,7 +50,7 @@ class ClassroomMembershipServiceTest {
     @BeforeEach
     fun setUp() {
         every { profileRepository.findByUserId(studentId) } returns
-            StudentProfile.create(school, StudentProfileCommand.Create(studentId, 1L, 2, 1, 1, "홍길동"))
+            StudentProfile.create(school, StudentProfileCommand.Create(studentId, 1L, 2, 1, 1, "홍길동", null))
     }
 
     @Test

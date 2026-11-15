@@ -4,6 +4,7 @@ import com.ninjasquad.springmockk.MockkBean
 import com.romafrihet.server.TeacherFlowFixture
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.security.SupabaseAuthClient
+import com.romafrihet.server.student.StudentLoginEmailPolicy
 import com.romafrihet.server.student.StudentPasswordService
 import com.romafrihet.server.student.StudentProfileRepository
 import com.romafrihet.server.student.StudentProfileService
@@ -36,11 +37,14 @@ class StudentPasswordResetFlowTest : TeacherFlowFixture() {
     @MockkBean(relaxUnitFun = true)
     private lateinit var supabaseAuthClient: SupabaseAuthClient
 
+    @Autowired
+    private lateinit var loginEmailPolicy: StudentLoginEmailPolicy
+
     @BeforeEach
     fun saveStudentProfile() {
-        profileService.create(
-            StudentProfileCommand.Create(studentId, schoolId, 2, 1, seatNumbers.incrementAndGet(), "홍길동"),
-        )
+        val command =
+            StudentProfileCommand.Create(studentId, schoolId, 2, 1, seatNumbers.incrementAndGet(), "홍길동", null)
+        profileService.create(command.copy(loginEmail = loginEmailPolicy.of(command)))
     }
 
     @Test

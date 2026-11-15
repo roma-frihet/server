@@ -24,11 +24,16 @@ class StudentProfileController(
     private val studentProfileService: StudentProfileService,
     private val studentPasswordService: StudentPasswordService,
 ) : BaseController {
-    @Operation(summary = "학생 가입 정보 저장", description = "Supabase 가입 직후 학교, 학번, 이름을 저장합니다.")
+    @Operation(
+        summary = "학생 가입 정보 저장",
+        description = "Supabase 가입 직후 학교, 학번, 이름을 저장합니다. 가입에 쓴 계정이 학번 규칙과 맞아야 합니다.",
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(@Valid @RequestBody request: StudentProfileRequest.Create): StudentProfileResponse.Result =
-        StudentProfileResponse.Result.of(studentProfileService.create(request.toCommand(getUserId())))
+        StudentProfileResponse.Result.of(
+            studentProfileService.create(request.toCommand(getUserId(), getEmailOrNull())),
+        )
 
     @Operation(summary = "내 가입 정보")
     @GetMapping("/me")

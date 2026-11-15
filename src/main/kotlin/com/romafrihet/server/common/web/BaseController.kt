@@ -14,7 +14,12 @@ interface BaseController {
     fun getUserId(): UUID = getUserIdOrNull() ?: throw BusinessException(ErrorCode.UNAUTHORIZED)
 
     fun getUserIdOrNull(): UUID? {
-        val jwt = SecurityContextHolder.getContext().authentication?.principal as? Jwt ?: return null
+        val jwt = jwtOrNull() ?: return null
         return runCatching { UUID.fromString(jwt.subject) }.getOrNull()
     }
+
+    /** 학생은 학번을 이메일 모양으로 바꿔 가입하므로, 가입 정보를 저장할 때 이 값으로 학번을 대조한다. */
+    fun getEmailOrNull(): String? = jwtOrNull()?.getClaimAsString("email")
+
+    private fun jwtOrNull(): Jwt? = SecurityContextHolder.getContext().authentication?.principal as? Jwt
 }

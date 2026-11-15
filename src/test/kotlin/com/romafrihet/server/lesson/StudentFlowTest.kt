@@ -7,6 +7,7 @@ import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.lesson.command.AttemptCommand
 import com.romafrihet.server.lesson.command.LessonOpeningCommand
 import com.romafrihet.server.lesson.command.QuestionCommand
+import com.romafrihet.server.student.StudentLoginEmailPolicy
 import com.romafrihet.server.student.StudentProfileService
 import com.romafrihet.server.student.command.StudentProfileCommand
 import com.romafrihet.server.student.rqrs.StudentProfileResponse
@@ -26,9 +27,17 @@ class StudentFlowTest : TeacherFlowFixture() {
     @Autowired
     private lateinit var attemptService: AttemptService
 
-    private fun saveProfile(userId: UUID = studentId, name: String = "홍길동") = studentProfileService.create(
-        StudentProfileCommand.Create(userId, schoolId, 2, 1, seatNumbers.incrementAndGet(), name),
-    )
+    @Autowired
+    private lateinit var studentLoginEmailPolicy: StudentLoginEmailPolicy
+
+    private fun saveProfile(userId: UUID = studentId, name: String = "홍길동") =
+        studentProfileService.create(createCommand(userId, seatNumbers.incrementAndGet(), name))
+
+    /** 학번 규칙에 맞는 로그인 계정을 붙여 준다. 실제로는 프론트가 이 규칙대로 가입시킨다. */
+    private fun createCommand(userId: UUID, seatNumber: Int, name: String): StudentProfileCommand.Create {
+        val command = StudentProfileCommand.Create(userId, schoolId, 2, 1, seatNumber, name, null)
+        return command.copy(loginEmail = studentLoginEmailPolicy.of(command))
+    }
 
     private fun createShortAnswer(lessonNumber: Int): Long = questionService.create(
         QuestionCommand.Create(
@@ -83,10 +92,16 @@ class StudentFlowTest : TeacherFlowFixture() {
         val profile = saveProfile()
 
         assertErrorCode(ErrorCode.STUDENT_NUMBER_DUPLICATED) {
-            studentProfileService.create(
-                StudentProfileCommand.Create(UUID.randomUUID(), schoolId, 2, 1, profile.seatNumber, "김철수"),
-            )
+            studentProfileService.create(createCommand(UUID.randomUUID(), profile.seatNumber, "김철수"))
         }
+    }
+
+    /** 남의 학번으로 프로필을 만들지 못하게 막는다. */
+    @Test
+    fun `로그인 계정이 학번 규칙과 다르면 거절한다`() {
+        val command = StudentProfileCommand.Create(studentId, schoolId, 2, 1, 1, "홍길동", "someone@else.com")
+
+        assertErrorCode(ErrorCode.STUDENT_LOGIN_EMAIL_MISMATCH) { studentProfileService.create(command) }
     }
 
     /** 문제별 제한 시간이 뜻을 가지려면 시작 전에는 본문이 보이면 안 된다. */

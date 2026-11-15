@@ -64,8 +64,10 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
   <div class="card"><h2>1. 로그인 (Supabase에서 JWT 발급)</h2>
     <div class="row"><label>교사 이메일<input id="teacherEmail" value="teacher@test.com"></label><label>비밀번호<input id="teacherPw" value="test1234!"></label>
       <button class="primary" data-act="login" data-role="teacher">교사 로그인</button><button data-act="createUser" data-role="teacher">교사 계정 만들기</button></div>
-    <div class="row"><label>학생 이메일<input id="studentEmail" value="student@test.com"></label><label>비밀번호<input id="studentPw" value="test1234!"></label>
+    <div class="row"><label>학생 계정 (학번에서 만들어집니다)<input id="studentEmail" readonly style="width:260px"></label><label>비밀번호<input id="studentPw" value="test1234!"></label>
       <button class="primary" data-act="login" data-role="student">학생 로그인</button><button data-act="createUser" data-role="student">학생 계정 만들기</button></div>
+    <div class="row"><label>학번 도메인<input id="studentDomain" value="students.roma-frihet.app"></label>
+      <span class="muted">학생은 학번으로 로그인합니다. 아래 학교와 학년·반·번호로 <code>s{학교}-{학번}@{도메인}</code>을 만들어 Supabase에 보냅니다. 서버 <code>app.student.login-email-domain</code>과 같아야 합니다.</span></div>
     <p class="muted">토큰은 1시간이면 만료됩니다. 만료되면 다시 로그인하세요. 새로고침해도 이 탭에서는 유지됩니다.</p></div>
   <div class="card"><h2>2. 학교 검색</h2>
     <div class="row"><label>검색어<input id="schoolKeyword" value="다원"></label><button data-act="searchSchools">검색</button><label>선택된 학교<select id="schoolSelect"></select></label></div></div>
@@ -197,10 +199,18 @@ function renderOptions(){
   $('optionForm').innerHTML=S.options.map((o,i)=>`<div class="row opt"><label>정답<input type="radio" name="correct" value="${i}" ${o.correct?'checked':''}></label><label>보기 ${i+1}<input data-opt="${i}" value="${esc(o.text)}"></label><label>보기 이미지<input type="file" accept="image/*" data-upload="opt${i}"></label><span class="muted">${S.images['opt'+i]?'이미지 첨부됨':''}</span></div>`).join('');
 }
 function resetOptions(){S.options=[{text:'엽록체',correct:true},{text:'미토콘드리아',correct:false}];S.images={};renderOptions()}
+// 학생은 학번으로 로그인한다. Supabase는 이메일만 받으므로 프론트가 이 규칙대로 바꿔 보낸다.
+// 학교까지 넣는 이유는 학교가 다르면 학번이 겹치기 때문이다. 서버 StudentLoginEmailPolicy와 같은 규칙이다.
+function studentEmail(){
+  const school=need($('schoolSelect').value,'학교를 먼저 검색하세요.');
+  const pad=n=>String(n).padStart(2,'0');
+  return `s${school}-${+$('grade').value}${pad($('classNumber').value)}${pad($('seatNumber').value)}@${$('studentDomain').value}`;
+}
+function roleEmail(r){return r==='student'?studentEmail():$(r+'Email').value}
 const actions={
-  async login(el){const r=el.dataset.role;const d=await call(null,'POST','/auth/v1/token?grant_type=password',{email:$(r+'Email').value,password:$(r+'Pw').value});S[r]=d.access_token;store(r,S[r]);refresh()},
-  async createUser(el){const r=el.dataset.role;const b={email:$(r+'Email').value,password:$(r+'Pw').value,email_confirm:true};if(r==='teacher')b.app_metadata={role:'teacher'};await call(null,'POST','/dev/users',b)},
-  async searchSchools(){const d=await call(null,'GET','/api/v1/schools?keyword='+encodeURIComponent($('schoolKeyword').value));$('schoolSelect').innerHTML=d.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')},
+  async login(el){const r=el.dataset.role;const email=roleEmail(r);if(r==='student')$('studentEmail').value=email;const d=await call(null,'POST','/auth/v1/token?grant_type=password',{email,password:$(r+'Pw').value});S[r]=d.access_token;store(r,S[r]);refresh()},
+  async createUser(el){const r=el.dataset.role;const email=roleEmail(r);if(r==='student')$('studentEmail').value=email;const b={email,password:$(r+'Pw').value,email_confirm:true};if(r==='teacher')b.app_metadata={role:'teacher'};await call(null,'POST','/dev/users',b)},
+  async searchSchools(){const d=await call(null,'GET','/api/v1/schools?keyword='+encodeURIComponent($('schoolKeyword').value));$('schoolSelect').innerHTML=d.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('');try{$('studentEmail').value=studentEmail()}catch(e){}},
   async saveTeacher(){await call('teacher','PUT','/api/v1/teacher/profile',{schoolId:+need($('schoolSelect').value,'학교를 먼저 검색하세요.'),name:$('teacherName').value})},
   async saveStudent(){await call('student','POST','/api/v1/student-profiles',{schoolId:+need($('schoolSelect').value,'학교를 먼저 검색하세요.'),grade:+$('grade').value,classNumber:+$('classNumber').value,seatNumber:+$('seatNumber').value,name:$('studentName').value})},
   async myProfile(){

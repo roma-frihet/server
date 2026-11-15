@@ -65,6 +65,7 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),
     STUDENT_NUMBER_DUPLICATED(HttpStatus.CONFLICT, "SP002", "이미 가입한 학번입니다."),
     STUDENT_PROFILE_REQUIRED(HttpStatus.CONFLICT, "SP003", "학생 가입 정보를 먼저 저장해 주세요."),
+    STUDENT_LOGIN_EMAIL_MISMATCH(HttpStatus.BAD_REQUEST, "SP004", "로그인 계정과 학번이 맞지 않습니다."),
 
     // Storage
     STORAGE_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "ST001", "파일 저장소를 사용할 수 없습니다."),
