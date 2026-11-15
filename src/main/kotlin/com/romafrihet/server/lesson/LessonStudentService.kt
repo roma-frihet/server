@@ -5,11 +5,8 @@ import com.romafrihet.server.classroom.ClassroomRepository
 import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.common.exception.assertCheck
-import com.romafrihet.server.lesson.command.QuestionCommand
 import com.romafrihet.server.lesson.dto.OpenedLessonDto
-import com.romafrihet.server.lesson.dto.QuestionDto
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
 import java.util.UUID
 
@@ -42,19 +39,6 @@ class LessonStudentService(
                     status = it.status,
                 )
             }
-    }
-
-    /** 지금 열린 차시의 문제만 내린다. 서명 URL 발급 때문에 트랜잭션 없이 실행한다. */
-    @Transactional(propagation = Propagation.NOT_SUPPORTED)
-    fun findQuestions(command: QuestionCommand.StudentQuery): List<QuestionDto> {
-        validateApproved(command.userId, command.classroomId)
-        val opening =
-            lessonOpeningRepository.findByClassroomIdAndLessonNumber(command.classroomId, command.lessonNumber)
-        if (opening?.isOpen != true) throw BusinessException(ErrorCode.NOT_FOUND)
-        val classroom = getClassroom(command.classroomId)
-        return questionImageUrlResolver.toDtos(
-            questionRepository.findAllWithOptions(requireNotNull(classroom.course.id), command.lessonNumber),
-        )
     }
 
     private fun getClassroom(classroomId: Long) =

@@ -89,28 +89,33 @@ class StudentFlowTest : TeacherFlowFixture() {
         }
     }
 
+    /** 문제별 제한 시간이 뜻을 가지려면 시작 전에는 본문이 보이면 안 된다. */
     @Test
-    fun `승인된 학생은 열린 차시의 문제를 조회한다`() {
+    fun `시작하지 않은 문제는 개수와 제한 시간만 알려 준다`() {
         val classroomId = enrolledClassroom()
-        createQuestion()
-        openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 3))
+        createQuestion(lessonNumber = 1)
+        createQuestion(lessonNumber = 1)
+        openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
 
-        val questions = studentService.findQuestions(QuestionCommand.StudentQuery(studentId, classroomId, 3))
+        val attempt = attemptService.findAttempt(AttemptCommand.Query(studentId, classroomId, 1))
 
-        assertThat(questions).hasSize(1)
-        assertThat(questions.single().options.map { it.content }).containsExactly("엽록체", "미토콘드리아")
+        assertThat(attempt.total).isEqualTo(2)
+        assertThat(attempt.nextTimeLimitSec).isEqualTo(30)
+        assertThat(attempt.current).isNull()
+        assertThat(attempt.last).isNull()
     }
 
     @Test
-    fun `열지 않은 차시와 승인되지 않은 학생은 조회할 수 없다`() {
+    fun `열지 않은 차시와 연결되지 않은 학생은 응시할 수 없다`() {
         val classroomId = enrolledClassroom()
-        createQuestion()
+        createQuestion(lessonNumber = 1)
 
         assertErrorCode(ErrorCode.NOT_FOUND) {
-            studentService.findQuestions(QuestionCommand.StudentQuery(studentId, classroomId, 3))
+            attemptService.findAttempt(AttemptCommand.Query(studentId, classroomId, 1))
         }
+        openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
         assertErrorCode(ErrorCode.FORBIDDEN) {
-            studentService.findQuestions(QuestionCommand.StudentQuery(UUID.randomUUID(), classroomId, 3))
+            attemptService.findAttempt(AttemptCommand.Query(UUID.randomUUID(), classroomId, 1))
         }
     }
 
@@ -118,11 +123,13 @@ class StudentFlowTest : TeacherFlowFixture() {
     fun `닫은 차시는 학생에게 숨기고 마감한 차시는 목록에 보인다`() {
         val classroomId = enrolledClassroom()
         createQuestion(lessonNumber = 1)
-        val query = QuestionCommand.StudentQuery(studentId, classroomId, 1)
+        val query = AttemptCommand.Query(studentId, classroomId, 1)
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 1))
 
         openingService.close(LessonOpeningCommand.Change(teacherId, classroomId, 1))
-        assertErrorCode(ErrorCode.NOT_FOUND) { studentService.findQuestions(query) }
+        assertErrorCode(ErrorCode.LESSON_NOT_OPEN) {
+            attemptService.start(AttemptCommand.Start(studentId, classroomId, 1, 0))
+        }
         assertThat(studentService.findOpenedLessons(studentId, classroomId)).isEmpty()
 
         openingService.finish(LessonOpeningCommand.Change(teacherId, classroomId, 1))
