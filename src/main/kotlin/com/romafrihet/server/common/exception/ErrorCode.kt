@@ -27,6 +27,8 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     // Auth
     UNAUTHORIZED(HttpStatus.UNAUTHORIZED, "AU001", "인증이 필요합니다."),
     FORBIDDEN(HttpStatus.FORBIDDEN, "AU002", "권한이 없습니다."),
+    AUTH_PROVIDER_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "AU003", "인증 서비스를 사용할 수 없습니다."),
+    PASSWORD_SAME_AS_CURRENT(HttpStatus.BAD_REQUEST, "AU004", "지금 쓰는 비밀번호와 다르게 정해야 합니다."),
 
     // Classroom
     CLASSROOM_DUPLICATED(HttpStatus.CONFLICT, "CL001", "같은 번호의 반이 이미 있습니다."),

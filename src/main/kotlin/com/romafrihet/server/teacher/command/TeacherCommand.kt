@@ -8,4 +8,6 @@ class TeacherCommand private constructor() {
     data class DeleteCourse(val userId: UUID, val courseId: Long)
 
     data class DeleteClassroom(val userId: UUID, val classroomId: Long)
+
+    data class ResetStudentPassword(val userId: UUID, val classroomId: Long, val membershipId: Long)
 }
