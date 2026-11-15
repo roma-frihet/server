@@ -1,5 +1,6 @@
 package com.romafrihet.server.lesson.rqrs
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.romafrihet.server.lesson.QuestionType
 import com.romafrihet.server.lesson.dto.QuestionDto
 import com.romafrihet.server.lesson.dto.QuestionImageDto
@@ -14,6 +15,7 @@ class QuestionResponse private constructor() {
         val content: String?,
         val imageId: Long?,
         val imageUrl: String?,
+        @get:JsonProperty("isCorrect")
         val isCorrect: Boolean,
     ) {
         companion object {

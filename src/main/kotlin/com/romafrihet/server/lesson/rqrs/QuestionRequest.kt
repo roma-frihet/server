@@ -1,5 +1,6 @@
 package com.romafrihet.server.lesson.rqrs
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.romafrihet.server.lesson.QuestionType
 import com.romafrihet.server.lesson.command.QuestionCommand
 import io.swagger.v3.oas.annotations.media.Schema
@@ -20,6 +21,7 @@ class QuestionRequest private constructor() {
         val content: String?,
         val imageId: Long?,
         @field:NotNull
+        @get:JsonProperty("isCorrect")
         val isCorrect: Boolean?,
     ) {
         fun toCommand() = QuestionCommand.Option(
