@@ -25,6 +25,7 @@ class StudentProfileController(
     private val studentPasswordService: StudentPasswordService,
 ) : BaseController {
     @Operation(
+        operationId = "createStudentProfile",
         summary = "학생 가입 정보 저장",
         description = "Supabase 가입 직후 학교, 학번, 이름을 저장합니다. 가입에 쓴 계정이 학번 규칙과 맞아야 합니다.",
     )
@@ -35,12 +36,19 @@ class StudentProfileController(
             studentProfileService.create(request.toCommand(getUserId(), getEmailOrNull())),
         )
 
-    @Operation(summary = "내 가입 정보")
+    @Operation(
+        operationId = "findMyStudentProfile",
+        summary = "내 가입 정보",
+    )
     @GetMapping("/me")
     fun findMine(): StudentProfileResponse.Mine =
         StudentProfileResponse.Mine.of(studentProfileService.find(getUserId()))
 
-    @Operation(summary = "내 비밀번호 변경", description = "교사가 초기화한 임시 비밀번호 상태를 풉니다.")
+    @Operation(
+        operationId = "changeMyPassword",
+        summary = "내 비밀번호 변경",
+        description = "교사가 초기화한 임시 비밀번호 상태를 풉니다.",
+    )
     @PutMapping("/me/password")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun changePassword(@Valid @RequestBody request: StudentPasswordRequest.Change) =

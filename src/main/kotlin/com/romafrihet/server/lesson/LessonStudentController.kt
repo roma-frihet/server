@@ -19,12 +19,18 @@ class LessonStudentController(
     private val lessonStudentService: LessonStudentService,
     private val attemptService: AttemptService,
 ) : BaseController {
-    @Operation(summary = "내 반의 열린 차시와 마감 차시 목록")
+    @Operation(
+        operationId = "findMyLessons",
+        summary = "내 반의 열린 차시와 마감 차시 목록",
+    )
     @GetMapping
     fun findOpenedLessons(@PathVariable classroomId: Long): List<LessonOpeningResponse.OpenedResult> =
         lessonStudentService.findOpenedLessons(getUserId(), classroomId).map(LessonOpeningResponse.OpenedResult::of)
 
-    @Operation(summary = "마감 차시의 문제, 내 답, 정답과 해설")
+    @Operation(
+        operationId = "findMyLessonResult",
+        summary = "마감 차시의 문제, 내 답, 정답과 해설",
+    )
     @GetMapping("/{lessonNumber}/result")
     fun findResult(@PathVariable classroomId: Long, @PathVariable lessonNumber: Int): LessonResultResponse.Result =
         LessonResultResponse.Result.of(

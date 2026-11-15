@@ -1,8 +1,29 @@
 # 프론트엔드 전달 문서
 
 이 문서는 **무엇을 만드는지와 어떤 순서로 흘러가는지**를 담습니다.
-요청·응답 필드의 정확한 모양은 서버를 띄우고 `http://localhost:8080/swagger-ui.html`을 봅니다.
+요청·응답 필드의 정확한 모양은 여기에 적지 않습니다 — 베껴 두면 다음 변경에서 바로 거짓말이 됩니다.
+모양은 OpenAPI 스펙이 들고 있고, 사람이 볼 때는 `http://localhost:8080/swagger-ui.html`을 봅니다.
 실제로 호출해 보려면 `tools/api-tester/`를 씁니다 (실행 방법은 [README.md](../../README.md)).
+
+## 0. 스펙으로 클라이언트 만들기
+
+프론트는 손으로 `fetch`를 쓰지 않고 **OpenAPI 스펙에서 타입과 React Query 훅을 생성**합니다.
+
+```bash
+# 백엔드에서 스펙 뽑기 (서버가 떠 있어야 한다)
+curl -s http://localhost:8080/v3/api-docs | python3 -m json.tool > ../Frontend-AI/api/openapi.json
+
+# 프론트에서 생성
+cd ../Frontend-AI && npm run api:gen
+```
+
+엔드포인트마다 훅이 하나씩 나옵니다 — `useCreateCourse`, `useFindMyAttempt`, `useSubmitAttemptAnswer`처럼요.
+
+**훅 이름은 서버가 정합니다.** 각 핸들러의 `@Operation(operationId = "...")` 값이 그대로 훅 이름이 됩니다. 이걸 비워 두면 springdoc이 Kotlin 메서드 이름을 쓰는데, 우리 컨트롤러는 `create`, `findAll`이 겹쳐서 `useCreate1`, `useCreate2` 같은 이름이 나옵니다. 그러면 엔드포인트를 하나 추가할 때마다 번호가 밀려 **같은 훅 이름이 다른 API를 가리키게 됩니다.**
+
+> 백엔드에서 엔드포인트를 추가할 때는 `operationId`를 반드시 붙이고, 한 번 내보낸 값은 바꾸지 않습니다. 프론트 코드가 그 이름을 직접 부르고 있습니다.
+
+`api-spec.version`은 아직 `none`입니다. 나중에 스펙 저장소를 두고 `npm run api:pull`로 버전을 받아 쓰는 구조로 갈 수 있지만, 지금은 위처럼 직접 떨구면 됩니다.
 
 ## 1. 이 서비스
 

@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("${ApiPaths.API_V1}/classrooms/{classroomId}/report")
 class ReportStudentController(private val studentReportService: StudentReportService) : BaseController {
     @Operation(
+        operationId = "findMyReport",
         summary = "내 학습 리포트",
         description = "지금 열린 차시, 차시별 내 점수와 반 평균, 최근 틀린 문제를 내립니다. 다른 학생의 점수는 담지 않습니다.",
     )
@@ -24,7 +25,11 @@ class ReportStudentController(private val studentReportService: StudentReportSer
         studentReportService.findReport(ReportCommand.StudentReport(getUserId(), classroomId)),
     )
 
-    @Operation(summary = "틀린 문제 모음", description = "마감한 차시에서 맞히지 못한 문제를 최근 차시부터 내립니다.")
+    @Operation(
+        operationId = "findMyWrongQuestions",
+        summary = "틀린 문제 모음",
+        description = "마감한 차시에서 맞히지 못한 문제를 최근 차시부터 내립니다.",
+    )
     @GetMapping("/wrong-questions")
     fun findWrongQuestions(@PathVariable classroomId: Long): List<StudentReportResponse.WrongQuestion> =
         studentReportService

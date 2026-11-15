@@ -26,29 +26,46 @@ class TeacherController(
     private val teacherService: TeacherService,
     private val studentPasswordResetService: StudentPasswordResetService,
 ) : BaseController {
-    @Operation(summary = "마이페이지", description = "이메일과 비밀번호는 Supabase Auth에서 다룹니다.")
+    @Operation(
+        operationId = "findMyPage",
+        summary = "마이페이지",
+        description = "이메일과 비밀번호는 Supabase Auth에서 다룹니다.",
+    )
     @GetMapping("/mypage")
     fun findMyPage(): TeacherResponse.MyPage = TeacherResponse.MyPage.of(teacherService.findMyPage(getUserId()))
 
-    @Operation(summary = "내 정보 저장", description = "처음 저장과 수정에 함께 씁니다. 학교를 옮겨도 기존 수업은 그대로입니다.")
+    @Operation(
+        operationId = "saveTeacherProfile",
+        summary = "내 정보 저장",
+        description = "처음 저장과 수정에 함께 씁니다. 학교를 옮겨도 기존 수업은 그대로입니다.",
+    )
     @PutMapping("/profile")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun saveProfile(@Valid @RequestBody request: TeacherRequest.SaveProfile) =
         teacherService.saveProfile(request.toCommand(getUserId()))
 
-    @Operation(summary = "수업 삭제", description = "반이나 문제가 있으면 삭제할 수 없습니다.")
+    @Operation(
+        operationId = "deleteCourse",
+        summary = "수업 삭제",
+        description = "반이나 문제가 있으면 삭제할 수 없습니다.",
+    )
     @DeleteMapping("/courses/{courseId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteCourse(@PathVariable courseId: Long) =
         teacherService.deleteCourse(TeacherCommand.DeleteCourse(getUserId(), courseId))
 
-    @Operation(summary = "반 삭제", description = "학생이나 차시 기록이 있으면 삭제할 수 없습니다.")
+    @Operation(
+        operationId = "deleteClassroom",
+        summary = "반 삭제",
+        description = "학생이나 차시 기록이 있으면 삭제할 수 없습니다.",
+    )
     @DeleteMapping("/classrooms/{classroomId}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun deleteClassroom(@PathVariable classroomId: Long) =
         teacherService.deleteClassroom(TeacherCommand.DeleteClassroom(getUserId(), classroomId))
 
     @Operation(
+        operationId = "resetStudentPassword",
         summary = "학생 비밀번호 초기화",
         description = "임시 비밀번호를 만들어 한 번만 내립니다. 학생의 기존 세션은 무효가 됩니다.",
     )

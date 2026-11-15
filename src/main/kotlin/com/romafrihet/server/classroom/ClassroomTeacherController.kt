@@ -27,30 +27,49 @@ class ClassroomTeacherController(
     private val classroomService: ClassroomService,
     private val classroomMembershipService: ClassroomMembershipService,
 ) : BaseController {
-    @Operation(summary = "반 생성", description = "반은 수업에 속합니다. 합류 코드는 수업 + 반마다 발급합니다.")
+    @Operation(
+        operationId = "createClassroom",
+        summary = "반 생성",
+        description = "반은 수업에 속합니다. 합류 코드는 수업 + 반마다 발급합니다.",
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun create(@Valid @RequestBody request: ClassroomRequest.Create): ClassroomResponse.Result =
         ClassroomResponse.Result.of(classroomService.create(request.toCommand(getUserId())))
 
-    @Operation(summary = "내 반 목록")
+    @Operation(
+        operationId = "findClassrooms",
+        summary = "내 반 목록",
+    )
     @GetMapping
     fun findAll(): List<ClassroomResponse.Result> =
         classroomService.findAll(getUserId()).map(ClassroomResponse.Result::of)
 
-    @Operation(summary = "합류 코드 발급", description = "코드는 5분간 유효하고, 다시 발급하면 이전 코드는 바로 무효가 됩니다.")
+    @Operation(
+        operationId = "issueJoinCode",
+        summary = "합류 코드 발급",
+        description = "코드는 5분간 유효하고, 다시 발급하면 이전 코드는 바로 무효가 됩니다.",
+    )
     @PostMapping("/{classroomId}/join-code")
     fun issueJoinCode(@PathVariable classroomId: Long): ClassroomResponse.Result = ClassroomResponse.Result.of(
         classroomService.issueJoinCode(ClassroomCommand.IssueJoinCode(getUserId(), classroomId)),
     )
 
-    @Operation(summary = "합류 코드 끄기", description = "이미 합류한 학생은 그대로 유지됩니다.")
+    @Operation(
+        operationId = "closeJoinCode",
+        summary = "합류 코드 끄기",
+        description = "이미 합류한 학생은 그대로 유지됩니다.",
+    )
     @DeleteMapping("/{classroomId}/join-code")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun closeJoinCode(@PathVariable classroomId: Long) =
         classroomService.closeJoinCode(ClassroomCommand.IssueJoinCode(getUserId(), classroomId))
 
-    @Operation(summary = "반 학생 목록", description = "코드로 연결된 학생입니다. 승인 절차는 없습니다.")
+    @Operation(
+        operationId = "findClassroomMemberships",
+        summary = "반 학생 목록",
+        description = "코드로 연결된 학생입니다. 승인 절차는 없습니다.",
+    )
     @GetMapping("/{classroomId}/memberships")
     fun findMemberships(@PathVariable classroomId: Long): List<ClassroomMembershipResponse.Result> =
         classroomMembershipService
@@ -58,6 +77,7 @@ class ClassroomTeacherController(
             .map(ClassroomMembershipResponse.Result::of)
 
     @Operation(
+        operationId = "removeClassroomStudent",
         summary = "학생 내보내기",
         description = "코드를 잘못 넣어 들어온 학생을 반에서 뺍니다. 그 반에서 푼 기록도 함께 지워집니다.",
     )

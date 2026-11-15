@@ -19,6 +19,7 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("${ApiPaths.TEACHER_V1}/attempt-answers")
 class AttemptOverrideTeacherController(private val attemptOverrideService: AttemptOverrideService) : BaseController {
     @Operation(
+        operationId = "overrideAttemptResult",
         summary = "문제 결과 덮어쓰기",
         description = "접속이 끊기는 등 사정이 있을 때 씁니다. 확정된 문제만 바꿀 수 있고 원래 결과는 이력으로 남습니다.",
     )

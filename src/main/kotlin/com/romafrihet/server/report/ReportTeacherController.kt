@@ -18,12 +18,17 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping(ApiPaths.TEACHER_V1)
 class ReportTeacherController(private val reportService: ReportService) : BaseController {
-    @Operation(summary = "수업 대시보드", description = "시작 체크리스트, 열린 문제, 반별 진도와 평균, 살펴볼 학생을 내립니다.")
+    @Operation(
+        operationId = "findDashboard",
+        summary = "수업 대시보드",
+        description = "시작 체크리스트, 열린 문제, 반별 진도와 평균, 살펴볼 학생을 내립니다.",
+    )
     @GetMapping("/courses/{courseId}/dashboard")
     fun findDashboard(@PathVariable courseId: Long): ReportResponse.Dashboard =
         ReportResponse.Dashboard.of(reportService.findDashboard(ReportCommand.Dashboard(getUserId(), courseId)))
 
     @Operation(
+        operationId = "findScores",
         summary = "학생 점수 조회",
         description = "반과 차시로 거를 수 있습니다. 열었던 차시마다 한 행이고, 미제출 학생은 correctCount가 null입니다.",
     )
@@ -34,7 +39,11 @@ class ReportTeacherController(private val reportService: ReportService) : BaseCo
     ): ReportResponse.ScoreResultPage =
         ReportResponse.ScoreResultPage.of(reportService.findScores(query.toCommand(getUserId(), courseId)))
 
-    @Operation(summary = "반 학생 관리", description = "연결된 학생의 점수와 상태를 내립니다. 검색어는 학생 목록에만 적용합니다.")
+    @Operation(
+        operationId = "findClassroomStudents",
+        summary = "반 학생 관리",
+        description = "연결된 학생의 점수와 상태를 내립니다. 검색어는 학생 목록에만 적용합니다.",
+    )
     @GetMapping("/classrooms/{classroomId}/students")
     fun findStudents(
         @PathVariable classroomId: Long,
@@ -43,6 +52,7 @@ class ReportTeacherController(private val reportService: ReportService) : BaseCo
         ReportResponse.Classroom.of(reportService.findStudents(query.toCommand(getUserId(), classroomId)))
 
     @Operation(
+        operationId = "findClassroomStudentDetail",
         summary = "학생 상세",
         description = "차시별 점수와 반 평균, 최근 차시의 문제별 결과를 내립니다. 결과를 고칠 때 attemptAnswerId를 씁니다.",
     )

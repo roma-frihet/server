@@ -13,7 +13,11 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("${ApiPaths.TEACHER_V1}/subjects")
 class SubjectTeacherController(private val subjectService: SubjectService) {
-    @Operation(summary = "과목 목록", description = "수업을 만들 때 고를 수 있는 과목입니다. 학교급으로 거릅니다.")
+    @Operation(
+        operationId = "findSubjects",
+        summary = "과목 목록",
+        description = "수업을 만들 때 고를 수 있는 과목입니다. 학교급으로 거릅니다.",
+    )
     @GetMapping
     fun findAll(@RequestParam(defaultValue = "MIDDLE") schoolLevel: SchoolLevel): List<SubjectResponse.Result> =
         subjectService.findAll(schoolLevel).map(SubjectResponse.Result::of)
