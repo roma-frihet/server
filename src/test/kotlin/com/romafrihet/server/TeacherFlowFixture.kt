@@ -12,10 +12,12 @@ import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.course.CourseService
 import com.romafrihet.server.course.command.CourseCommand
+import com.romafrihet.server.lesson.Attempt
+import com.romafrihet.server.lesson.AttemptAnswer
+import com.romafrihet.server.lesson.AttemptAnswerRepository
+import com.romafrihet.server.lesson.AttemptRepository
 import com.romafrihet.server.lesson.LessonOpeningService
 import com.romafrihet.server.lesson.LessonService
-import com.romafrihet.server.lesson.LessonSubmission
-import com.romafrihet.server.lesson.LessonSubmissionRepository
 import com.romafrihet.server.lesson.QuestionImage
 import com.romafrihet.server.lesson.QuestionImageRepository
 import com.romafrihet.server.lesson.QuestionRepository
@@ -36,6 +38,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
 import org.springframework.context.annotation.Import
 import org.testcontainers.junit.jupiter.Testcontainers
+import java.time.LocalDateTime
 import java.util.UUID
 
 /** 실제 스키마로 교사 기능을 검증하는 통합 테스트의 공통 준비다. */
@@ -80,7 +83,10 @@ abstract class TeacherFlowFixture {
     protected lateinit var questionRepository: QuestionRepository
 
     @Autowired
-    protected lateinit var submissionRepository: LessonSubmissionRepository
+    protected lateinit var attemptRepository: AttemptRepository
+
+    @Autowired
+    protected lateinit var attemptAnswerRepository: AttemptAnswerRepository
 
     @MockkBean(relaxUnitFun = true)
     protected lateinit var storageClient: StorageClient
@@ -144,19 +150,21 @@ abstract class TeacherFlowFixture {
         return classroomId
     }
 
-    /** 학생 제출 API 없이 채점 결과만 만든다. */
+    /** 학생 응시 API 없이 확정된 결과만 만든다. */
     protected fun submit(classroomId: Long, userId: UUID, questionId: Long, correct: Boolean) {
         val question = requireNotNull(questionRepository.findWithOptions(questionId, teacherId))
         val option = question.options.first { it.isCorrect == correct }
-        val submission =
-            LessonSubmission.create(
-                classroomRepository.findById(classroomId).orElseThrow(),
-                question.lessonNumber,
-                userId,
-                1,
-            )
-        submission.addAnswer(question, option.id, null)
-        submissionRepository.save(submission)
+        val classroom = classroomRepository.findById(classroomId).orElseThrow()
+        val attempt =
+            attemptRepository.findByClassroomIdAndLessonNumberAndUserId(classroomId, question.lessonNumber, userId)
+                ?: attemptRepository.save(Attempt.create(classroom, question.lessonNumber, userId))
+        val now = LocalDateTime.now()
+        val answer = AttemptAnswer.create(attempt, question, attempt.nextIndex, now)
+        answer.finalizeWith(option.id, null, byTimeout = false, now = now)
+        attemptAnswerRepository.save(answer)
+        attempt.startQuestion()
+        attempt.completeQuestion(questionCount = 1, now = now)
+        attemptRepository.save(attempt)
     }
 
     protected fun openLesson(classroomId: Long, lessonNumber: Int) =

@@ -5,10 +5,10 @@ import com.romafrihet.server.classroom.ClassroomRepository
 import com.romafrihet.server.classroom.getOwned
 import com.romafrihet.server.course.CourseRepository
 import com.romafrihet.server.course.getOwned
+import com.romafrihet.server.lesson.AttemptRepository
 import com.romafrihet.server.lesson.Lesson
 import com.romafrihet.server.lesson.LessonRepository
 import com.romafrihet.server.lesson.LessonStatus
-import com.romafrihet.server.lesson.LessonSubmissionRepository
 import com.romafrihet.server.lesson.dto.LessonScoreQueryDto
 import com.romafrihet.server.report.command.ReportCommand
 import com.romafrihet.server.report.dto.ClassroomProgressDto
@@ -31,7 +31,7 @@ class ReportService(
     private val courseRepository: CourseRepository,
     private val classroomRepository: ClassroomRepository,
     private val lessonRepository: LessonRepository,
-    private val lessonSubmissionRepository: LessonSubmissionRepository,
+    private val attemptRepository: AttemptRepository,
     private val classroomRecordsReader: ClassroomRecordsReader,
     private val classroomProgressCalculator: ClassroomProgressCalculator,
 ) {
@@ -47,7 +47,7 @@ class ReportService(
     /** 수업 범위에서만 조회하므로 다른 교사의 반을 지정하면 빈 페이지가 된다. */
     fun findScores(command: ReportCommand.Scores): Page<StudentLessonScoreDto> {
         courseRepository.getOwned(command.courseId, command.userId)
-        return lessonSubmissionRepository
+        return attemptRepository
             .queryScores(
                 LessonScoreQueryDto(
                     courseId = command.courseId,
@@ -63,8 +63,8 @@ class ReportService(
                     studentName = it.studentName,
                     studentNumber = it.studentNumber,
                     lessonNumber = it.lessonNumber,
-                    correctCount = it.correctCount,
-                    questionCount = it.questionCount,
+                    correctCount = it.correctCount.toInt().takeIf { _ -> it.answeredCount > 0 },
+                    questionCount = it.questionCount.toInt(),
                 )
             }
     }
@@ -106,16 +106,16 @@ class ReportService(
         return classrooms.flatMap { classroom ->
             val classroomId = requireNotNull(classroom.id)
             records.openings[classroomId].orEmpty().filter { it.isOpen }.map { opening ->
-                val responses =
-                    records.submissions[classroomId].orEmpty().filter { it.lessonNumber == opening.lessonNumber }
+                val scores = records.scores[classroomId].orEmpty()
                 LiveLessonDto(
                     classroomId = classroomId,
                     classNo = classroom.classNo,
                     lessonNumber = opening.lessonNumber,
                     lessonTitle = titles[opening.lessonNumber].orEmpty(),
-                    responseCount = responses.size,
+                    responseCount =
+                    scores.count { (_, byLesson) -> (byLesson[opening.lessonNumber]?.answeredCount ?: 0) > 0 },
                     studentCount = records.students[classroomId].orEmpty().size,
-                    averageCorrect = classroomProgressCalculator.averageCorrect(responses),
+                    averageCorrect = classroomProgressCalculator.averageCorrect(scores, opening.lessonNumber),
                     questionCount = records.questionCounts[opening.lessonNumber] ?: 0,
                 )
             }

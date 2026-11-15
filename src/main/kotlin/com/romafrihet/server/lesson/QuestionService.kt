@@ -24,7 +24,7 @@ class QuestionService(
     private val questionImageUrlResolver: QuestionImageUrlResolver,
     private val eventPublisher: ApplicationEventPublisher,
     private val lessonRepository: LessonRepository,
-    private val lessonSubmissionRepository: LessonSubmissionRepository,
+    private val attemptRepository: AttemptRepository,
 ) {
     /** 서명 URL 발급은 외부 호출이라 트랜잭션 없이 실행한다. */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -72,7 +72,7 @@ class QuestionService(
             options = command.options,
         )
 
-        if (lessonSubmissionRepository.existsByClassroomCourseIdAndLessonNumber(courseId, question.lessonNumber)) {
+        if (attemptRepository.existsByClassroomCourseIdAndLessonNumber(courseId, question.lessonNumber)) {
             assertCheck(!question.hasScoringChange(command)) { ErrorCode.QUESTION_LOCKED_BY_SUBMISSION }
             question.updateTextOnly(command)
             return
@@ -118,7 +118,7 @@ class QuestionService(
                     courseId,
                     lessonNumber,
                 ) ||
-                lessonSubmissionRepository.existsByClassroomCourseIdAndLessonNumber(courseId, lessonNumber)
+                attemptRepository.existsByClassroomCourseIdAndLessonNumber(courseId, lessonNumber)
         assertCheck(!locked) { ErrorCode.LESSON_LOCKED_BY_OPENING }
     }
 }
