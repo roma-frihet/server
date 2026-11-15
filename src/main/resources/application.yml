@@ -45,6 +45,9 @@ app:
     service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
     bucket: question-images
     signed-url-ttl-seconds: 600
+  attempt:
+    # 마감 직후 도착한 제출까지 인정하는 여유(초)
+    grace-seconds: 2
 
 springdoc:
   swagger-ui:

@@ -52,6 +52,12 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     SUBMISSION_ALREADY_EXISTS(HttpStatus.CONFLICT, "LS010", "이미 제출한 차시입니다."),
     SUBMISSION_ANSWER_INVALID(HttpStatus.BAD_REQUEST, "LS011", "이 차시의 문제나 보기가 아닌 답안입니다."),
     QUESTION_LOCKED_BY_SUBMISSION(HttpStatus.CONFLICT, "LS012", "제출이 있는 문제는 글과 해설만 고칠 수 있습니다."),
+    ATTEMPT_OUT_OF_ORDER(HttpStatus.CONFLICT, "LS013", "앞 문제부터 순서대로 풀어야 합니다."),
+    ATTEMPT_NOT_IN_QUESTION(HttpStatus.CONFLICT, "LS014", "시작하지 않은 문제입니다."),
+    ATTEMPT_TIME_OVER(HttpStatus.CONFLICT, "LS015", "제한 시간이 지난 문제입니다."),
+    ATTEMPT_ALREADY_DONE(HttpStatus.CONFLICT, "LS016", "이미 다 푼 차시입니다."),
+    ATTEMPT_NOT_DONE(HttpStatus.CONFLICT, "LS017", "아직 다 풀지 않은 차시입니다."),
+    ANSWER_REQUIRED(HttpStatus.BAD_REQUEST, "LS018", "답을 고르거나 입력해야 합니다."),
 
     // Student profile
     STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),
