@@ -3,14 +3,31 @@ package com.romafrihet.server.lesson
 import com.romafrihet.server.TeacherFlowFixture
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.lesson.command.AttemptCommand
+import io.mockk.every
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.transaction.support.TransactionSynchronizationManager
 
 /** 시간이 걸린 규칙은 고정 시계를 쓸 수 없는 통합 경로라, 시간이 흐르지 않는 조건만 여기서 본다. */
 class AttemptFlowTest : TeacherFlowFixture() {
     @Autowired
     private lateinit var attemptService: AttemptService
+
+    /** 한 반이 동시에 문제를 시작할 때 외부 호출이 커넥션과 락을 붙잡으면 안 된다. */
+    @Test
+    fun `이미지 서명 URL은 트랜잭션 밖에서 발급한다`() {
+        val classroomId = openedClassroom()
+        var activeDuringCall: Boolean? = null
+        every { storageClient.createSignedUrls(any()) } answers {
+            activeDuringCall = TransactionSynchronizationManager.isActualTransactionActive()
+            emptyMap()
+        }
+
+        attemptService.start(AttemptCommand.Start(studentId, classroomId, 1, 0))
+
+        assertThat(activeDuringCall).isFalse()
+    }
 
     @Test
     fun `응시를 시작하기 전에는 아직 아무것도 풀지 않은 상태다`() {

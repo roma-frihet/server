@@ -11,7 +11,8 @@ import com.romafrihet.server.lesson.dto.AttemptDto
 import com.romafrihet.server.lesson.dto.CurrentQuestionDto
 import com.romafrihet.server.lesson.dto.FinalizedAnswerDto
 import org.springframework.stereotype.Service
-import org.springframework.transaction.annotation.Transactional
+import org.springframework.transaction.PlatformTransactionManager
+import org.springframework.transaction.support.TransactionTemplate
 import java.time.Clock
 import java.time.LocalDateTime
 import java.util.UUID
@@ -19,9 +20,11 @@ import java.util.UUID
 /**
  * 학생이 문제를 하나씩 푼다. 시간은 문제를 시작할 때부터 흐르고 되돌아갈 수 없다.
  * 차시를 닫거나 마감해도 이미 시작한 문제는 제 마감 시각까지 제출을 받고, 새로 시작하는 것만 막는다.
+ *
+ * 상태를 바꾸는 일은 트랜잭션 안에서 끝내고, 이미지 서명 URL 발급은 트랜잭션 밖에서 한다.
+ * 한 반이 동시에 문제를 시작하는 순간에 외부 호출이 커넥션과 락을 붙잡으면 안 된다.
  */
 @Service
-@Transactional
 class AttemptService(
     private val classroomRepository: ClassroomRepository,
     private val classroomMembershipRepository: ClassroomMembershipRepository,
@@ -32,13 +35,15 @@ class AttemptService(
     private val attemptFinalizer: AttemptFinalizer,
     private val questionImageUrlResolver: QuestionImageUrlResolver,
     private val clock: Clock,
+    transactionManager: PlatformTransactionManager,
 ) {
-    fun findAttempt(command: AttemptCommand.Query): AttemptDto {
-        val lesson = load(command.userId, command.classroomId, command.lessonNumber)
-        return toDto(lesson)
-    }
+    private val transactionTemplate = TransactionTemplate(transactionManager)
 
-    fun start(command: AttemptCommand.Start): AttemptDto {
+    fun findAttempt(command: AttemptCommand.Query): AttemptDto = inTransaction {
+        snapshot(load(command.userId, command.classroomId, command.lessonNumber))
+    }.toDto()
+
+    fun start(command: AttemptCommand.Start): AttemptDto = inTransaction {
         val lesson = load(command.userId, command.classroomId, command.lessonNumber)
         assertCheck(lesson.opening.status == LessonStatus.OPEN) { ErrorCode.LESSON_NOT_OPEN }
 
@@ -57,26 +62,26 @@ class AttemptService(
             )
             attempt.startQuestion()
         }
-        return toDto(lesson.copy(attempt = attempt))
-    }
+        snapshot(lesson.copy(attempt = attempt))
+    }.toDto()
 
-    fun saveDraft(command: AttemptCommand.Answer): AttemptDto {
+    fun saveDraft(command: AttemptCommand.Answer): AttemptDto = inTransaction {
         val lesson = load(command.userId, command.classroomId, command.lessonNumber)
         val answer = inProgressAnswer(lesson, command.questionIndex)
         assertCheck(!LocalDateTime.now(clock).isAfter(answer.deadline)) { ErrorCode.ATTEMPT_TIME_OVER }
         assertCheck(answer.question.accepts(command.optionId)) { ErrorCode.SUBMISSION_ANSWER_INVALID }
         answer.saveDraft(command.optionId, command.text?.trim())
-        return toDto(lesson)
-    }
+        snapshot(lesson)
+    }.toDto()
 
     /** 이미 확정된 문제에 다시 제출하면 확정 결과를 그대로 돌려준다. 재전송이 안전해야 한다. */
-    fun submit(command: AttemptCommand.Answer): AttemptDto {
+    fun submit(command: AttemptCommand.Answer): AttemptDto = inTransaction {
         val lesson = load(command.userId, command.classroomId, command.lessonNumber)
         val attempt = lesson.attempt ?: throw BusinessException(ErrorCode.ATTEMPT_NOT_IN_QUESTION)
         val answer =
             attemptAnswerRepository.findByAttemptIdAndQuestionIndex(requireNotNull(attempt.id), command.questionIndex)
                 ?: throw BusinessException(ErrorCode.ATTEMPT_NOT_IN_QUESTION)
-        if (answer.isFinalized) return toDto(lesson)
+        if (answer.isFinalized) return@inTransaction snapshot(lesson)
 
         val now = LocalDateTime.now(clock)
         if (attemptFinalizer.isOverDeadline(answer, now)) {
@@ -89,8 +94,10 @@ class AttemptService(
             answer.finalizeWith(command.optionId, text, byTimeout = false, now = now)
         }
         attempt.completeQuestion(lesson.questions.size, now)
-        return toDto(lesson)
-    }
+        snapshot(lesson)
+    }.toDto()
+
+    private fun <T> inTransaction(block: () -> T): T = requireNotNull(transactionTemplate.execute { block() })
 
     /**
      * 반에 연 적 있는 차시인지 확인하고 응시와 문제를 함께 읽는다.
@@ -124,36 +131,33 @@ class AttemptService(
         return answer
     }
 
-    private fun toDto(lesson: LessonAttempt): AttemptDto {
+    /** 트랜잭션 안에서 필요한 값을 모두 꺼내 둔다. 이미지 URL만 밖에서 붙인다. */
+    private fun snapshot(lesson: LessonAttempt): AttemptSnapshot {
         val attempt = lesson.attempt
         val answers =
             attempt?.id?.let(attemptAnswerRepository::findAllByAttemptIdOrderByQuestionIndexAsc).orEmpty()
         val phase = attempt?.phase ?: AttemptPhase.READY
         val nextIndex = attempt?.nextIndex ?: 0
         val finalized = answers.filter { it.isFinalized }
-        return AttemptDto(
+        val current =
+            answers
+                .firstOrNull { !it.isFinalized && it.questionIndex == nextIndex }
+                ?.takeIf { phase == AttemptPhase.IN_QUESTION }
+        return AttemptSnapshot(
             phase = phase,
             total = lesson.questions.size,
             nextIndex = nextIndex,
             nextTimeLimitSec = lesson.questions.getOrNull(nextIndex)?.timeLimitSec,
             correctCount =
             if (phase == AttemptPhase.DONE) finalized.count { it.finalResult == QuestionResult.RIGHT } else null,
-            current =
-            answers
-                .firstOrNull { !it.isFinalized && it.questionIndex == nextIndex }
-                ?.takeIf { phase == AttemptPhase.IN_QUESTION }
-                ?.let(::toCurrent),
+            currentQuestion = current?.question,
+            currentIndex = current?.questionIndex,
+            remainingMillis = current?.remainingMillis(LocalDateTime.now(clock)),
+            draftOptionId = current?.optionId,
+            draftText = current?.answerText,
             last = finalized.maxByOrNull { it.questionIndex }?.let(::toFinalized),
         )
     }
-
-    private fun toCurrent(answer: AttemptAnswer) = CurrentQuestionDto(
-        questionIndex = answer.questionIndex,
-        question = questionImageUrlResolver.toDtos(listOf(answer.question)).single(),
-        remainingMillis = answer.remainingMillis(LocalDateTime.now(clock)),
-        draftOptionId = answer.optionId,
-        draftText = answer.answerText,
-    )
 
     /** 정답과 해설은 확정된 뒤에만 나간다. */
     private fun toFinalized(answer: AttemptAnswer): FinalizedAnswerDto {
@@ -170,10 +174,44 @@ class AttemptService(
         )
     }
 
+    private fun AttemptSnapshot.toDto() = AttemptDto(
+        phase = phase,
+        total = total,
+        nextIndex = nextIndex,
+        nextTimeLimitSec = nextTimeLimitSec,
+        correctCount = correctCount,
+        current =
+        currentQuestion?.let {
+            CurrentQuestionDto(
+                questionIndex = requireNotNull(currentIndex),
+                question = questionImageUrlResolver.toDtos(listOf(it)).single(),
+                remainingMillis = requireNotNull(remainingMillis),
+                draftOptionId = draftOptionId,
+                draftText = draftText,
+            )
+        },
+        last = last,
+    )
+
     private data class LessonAttempt(
         val classroom: Classroom,
         val opening: LessonOpening,
         val questions: List<Question>,
         val attempt: Attempt?,
+    )
+
+    /** 트랜잭션 안에서 다 꺼낸 값이다. currentQuestion은 options까지 로딩된 상태로만 담는다. */
+    private data class AttemptSnapshot(
+        val phase: AttemptPhase,
+        val total: Int,
+        val nextIndex: Int,
+        val nextTimeLimitSec: Int?,
+        val correctCount: Int?,
+        val currentQuestion: Question?,
+        val currentIndex: Int?,
+        val remainingMillis: Long?,
+        val draftOptionId: Long?,
+        val draftText: String?,
+        val last: FinalizedAnswerDto?,
     )
 }
