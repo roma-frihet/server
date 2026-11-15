@@ -43,5 +43,6 @@ class StudentProfileService(
         seatNumber = profile.seatNumber,
         studentNumber = profile.studentNumber(),
         name = profile.name,
+        mustChangePassword = profile.mustChangePassword,
     )
 }

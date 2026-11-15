@@ -199,7 +199,10 @@ const actions={
   async searchSchools(){const d=await call(null,'GET','/api/v1/schools?keyword='+encodeURIComponent($('schoolKeyword').value));$('schoolSelect').innerHTML=d.map(s=>`<option value="${s.id}">${esc(s.name)}</option>`).join('')},
   async saveTeacher(){await call('teacher','PUT','/api/v1/teacher/profile',{schoolId:+need($('schoolSelect').value,'학교를 먼저 검색하세요.'),name:$('teacherName').value})},
   async saveStudent(){await call('student','POST','/api/v1/student-profiles',{schoolId:+need($('schoolSelect').value,'학교를 먼저 검색하세요.'),grade:+$('grade').value,classNumber:+$('classNumber').value,seatNumber:+$('seatNumber').value,name:$('studentName').value})},
-  async myProfile(){await call('student','GET','/api/v1/student-profiles/me')},
+  async myProfile(){
+    const d=await call('student','GET','/api/v1/student-profiles/me');
+    if(d.profile?.mustChangePassword)log('안내','',null,0,'임시 비밀번호 상태입니다. 합류 탭에서 새 비밀번호를 정하세요.');
+  },
   async loadSubjects(){
     const d=await call('teacher','GET','/api/v1/teacher/subjects?schoolLevel=MIDDLE');
     $('courseSubject').innerHTML=d.map(s=>`<option value="${s.id}">${esc(s.subjectGroup)} · ${esc(s.name)}</option>`).join('');

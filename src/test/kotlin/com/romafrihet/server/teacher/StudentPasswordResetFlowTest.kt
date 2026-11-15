@@ -82,6 +82,17 @@ class StudentPasswordResetFlowTest : TeacherFlowFixture() {
         assertThat(activeDuringCall).isFalse()
     }
 
+    /** 프론트가 비밀번호 변경 화면으로 보내려면 이 값을 읽을 수 있어야 한다. */
+    @Test
+    fun `내 정보 조회에 임시 비밀번호 상태가 담긴다`() {
+        val classroomId = joinedClassroom()
+        assertThat(requireNotNull(profileService.find(studentId)).mustChangePassword).isFalse()
+
+        resetService.reset(resetCommand(classroomId))
+
+        assertThat(requireNotNull(profileService.find(studentId)).mustChangePassword).isTrue()
+    }
+
     @Test
     fun `다른 교사는 초기화할 수 없다`() {
         val classroomId = joinedClassroom()

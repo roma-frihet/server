@@ -13,6 +13,8 @@ class StudentProfileResponse private constructor() {
         val seatNumber: Int,
         val studentNumber: String,
         val name: String,
+        /** true면 교사가 초기화한 임시 비밀번호 상태다. 비밀번호 변경 화면으로 보낸다. */
+        val mustChangePassword: Boolean,
     ) {
         companion object {
             fun of(dto: StudentProfileDto) = Result(
@@ -23,6 +25,7 @@ class StudentProfileResponse private constructor() {
                 seatNumber = dto.seatNumber,
                 studentNumber = dto.studentNumber,
                 name = dto.name,
+                mustChangePassword = dto.mustChangePassword,
             )
         }
     }
