@@ -8,4 +8,6 @@ class LessonCommand private constructor() {
     data class Rename(val userId: UUID, val courseId: Long, val lessonNumber: Int, val title: String)
 
     data class Query(val userId: UUID, val courseId: Long)
+
+    data class Delete(val userId: UUID, val courseId: Long, val lessonNumber: Int)
 }

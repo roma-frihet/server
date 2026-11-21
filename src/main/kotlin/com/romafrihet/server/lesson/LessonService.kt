@@ -1,9 +1,12 @@
 package com.romafrihet.server.lesson
 
 import com.romafrihet.server.classroom.ClassroomRepository
+import com.romafrihet.server.common.exception.ErrorCode
+import com.romafrihet.server.common.exception.assertCheck
 import com.romafrihet.server.course.CourseRepository
 import com.romafrihet.server.course.getOwned
 import com.romafrihet.server.lesson.command.LessonCommand
+import com.romafrihet.server.lesson.command.QuestionCommand
 import com.romafrihet.server.lesson.dto.LessonClassroomStatusDto
 import com.romafrihet.server.lesson.dto.LessonDto
 import org.springframework.stereotype.Service
@@ -17,6 +20,8 @@ class LessonService(
     private val lessonRepository: LessonRepository,
     private val lessonOpeningRepository: LessonOpeningRepository,
     private val questionRepository: QuestionRepository,
+    private val questionCleaner: QuestionCleaner,
+    private val attemptRepository: AttemptRepository,
 ) {
     @Transactional
     fun create(command: LessonCommand.Create): LessonDto {
@@ -24,6 +29,25 @@ class LessonService(
         val lessonNumber = (lessonRepository.findMaxLessonNumber(command.courseId) ?: 0) + 1
         lessonRepository.save(Lesson.create(course, lessonNumber, command))
         return find(command.courseId).single { it.lessonNumber == lessonNumber }
+    }
+
+    /**
+     * 차시를 지우면 그 차시의 문제와 연 기록도 함께 사라진다. 학생이 푼 적이 있으면 막는다.
+     * 번호는 다시 쓰지 않는다. 2차시를 지워도 3차시가 2차시가 되지는 않는다.
+     */
+    @Transactional
+    fun delete(command: LessonCommand.Delete) {
+        courseRepository.getOwned(command.courseId, command.userId)
+        val lesson = lessonRepository.getByNumber(command.courseId, command.lessonNumber)
+        assertCheck(
+            !attemptRepository.existsByClassroomCourseIdAndLessonNumber(command.courseId, command.lessonNumber),
+        ) { ErrorCode.LESSON_HAS_ATTEMPTS }
+
+        lessonOpeningRepository.deleteAllByCourseIdAndLessonNumber(command.courseId, command.lessonNumber)
+        questionCleaner.deleteAllInLesson(
+            QuestionCommand.DeleteAllInLesson(command.courseId, command.lessonNumber),
+        )
+        lessonRepository.delete(lesson)
     }
 
     @Transactional

@@ -30,6 +30,10 @@ interface QuestionRepository : JpaRepository<Question, Long> {
     )
     fun findAllWithOptions(courseId: Long, lessonNumber: Int): List<Question>
 
+    /** 수업을 통째로 지울 때 쓴다. 보기는 cascade로 함께 지워지므로 엔티티로 불러온다. */
+    @Query("select distinct q from Question q left join fetch q.options where q.course.id = :courseId")
+    fun findAllWithOptionsByCourseId(courseId: Long): List<Question>
+
     fun countByCourseIdAndLessonNumber(courseId: Long, lessonNumber: Int): Int
 
     /**

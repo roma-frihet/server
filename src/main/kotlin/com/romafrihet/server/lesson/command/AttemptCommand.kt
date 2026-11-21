@@ -17,4 +17,10 @@ class AttemptCommand private constructor() {
     )
 
     data class DeleteAllInClassroom(val classroomId: Long, val userId: UUID)
+
+    /** 반을 지울 때 그 반의 모든 학생 응시를 지운다. */
+    data class DeleteAllInClassrooms(val classroomIds: Collection<Long>)
+
+    /** 차시를 지울 때 그 차시의 모든 반, 모든 학생 응시를 지운다. */
+    data class DeleteAllInLesson(val courseId: Long, val lessonNumber: Int)
 }
