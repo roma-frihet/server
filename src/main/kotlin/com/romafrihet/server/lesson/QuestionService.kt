@@ -56,7 +56,7 @@ class QuestionService(
             imageId = command.imageId,
             options = command.options,
         )
-        val displayOrder = questionRepository.countByCourseIdAndLessonNumber(command.courseId, command.lessonNumber)
+        val displayOrder = questionRepository.nextDisplayOrder(command.courseId, command.lessonNumber)
         return requireNotNull(questionRepository.save(Question.create(course, displayOrder, command)).id)
     }
 
