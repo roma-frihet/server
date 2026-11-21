@@ -156,11 +156,19 @@ class ArchitectureTest {
                     Regex("^is[A-Z]").containsMatchIn(method.name)
             }
 
+        // 어노테이션만 붙이고 값을 비우면 springdoc이 다시 "open"으로 적는다.
+        // 이름까지 같아야 스펙과 실제가 어긋나지 않는다.
         val declareJsonProperty =
-            condition<JavaMethod>("be annotated with @JsonProperty") { method ->
-                !method.isAnnotatedWith(JsonProperty::class.java) to
-                    "${method.fullName} is an is-prefixed boolean without @JsonProperty; " +
-                    "springdoc would document it under a different name than Jackson sends"
+            condition<JavaMethod>("be annotated with @JsonProperty(\"<property name>\")") { method ->
+                val declared = method
+                    .tryGetAnnotationOfType(JsonProperty::class.java)
+                    .map(JsonProperty::value)
+                    .orElse(null)
+
+                (declared != method.name) to
+                    "${method.fullName} is an is-prefixed boolean whose @JsonProperty is " +
+                    "${declared?.let { "\"$it\"" } ?: "missing"}; it must be \"${method.name}\" or " +
+                    "springdoc documents a different name than Jackson sends"
             }
 
         val BOOLEAN_TYPES = setOf("boolean", "java.lang.Boolean")

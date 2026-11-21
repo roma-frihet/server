@@ -30,6 +30,24 @@ class QuestionEditFlowTest : TeacherFlowFixture() {
     }
 
     @Test
+    fun `가운데 문제를 지운 뒤에도 문제를 더 넣을 수 있다`() {
+        createQuestion(lessonNumber = 1)
+        val middle = createQuestion(lessonNumber = 1)
+        createQuestion(lessonNumber = 1)
+
+        // 0,1,2에서 1을 지우면 0,2가 남는다. 개수로 다음 번호를 정하면 2를 또 주게 된다.
+        questionService.delete(QuestionCommand.Delete(teacherId, middle))
+        val added = createQuestion(lessonNumber = 1)
+
+        val orders = questionService
+            .findAll(QuestionCommand.Query(teacherId, courseId, 1))
+            .map { it.displayOrder }
+
+        assertThat(orders).doesNotHaveDuplicates()
+        assertThat(findQuestion(added).displayOrder).isEqualTo(3)
+    }
+
+    @Test
     fun `아무도 풀지 않았으면 차시가 열려 있어도 문제를 고칠 수 있다`() {
         val classroomId = createClassroom()
         val questionId = createQuestion(lessonNumber = 1)
