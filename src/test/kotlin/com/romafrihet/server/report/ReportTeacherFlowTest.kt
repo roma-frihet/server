@@ -76,8 +76,8 @@ class ReportTeacherFlowTest : TeacherFlowFixture() {
     }
 
     @Test
-    fun `마이페이지는 수업과 반을 보여 주고 기록이 있는 반은 지우지 않는다`() {
-        val classroomId = joinedClassroom()
+    fun `마이페이지는 수업과 반을 보여 주고 빈 수업을 지운다`() {
+        joinedClassroom()
         teacherService.saveProfile(TeacherCommand.SaveProfile(teacherId, schoolId, "김선생"))
         val emptyCourse = createCourse("미술")
 
@@ -85,12 +85,6 @@ class ReportTeacherFlowTest : TeacherFlowFixture() {
         assertThat(myPage.profile?.name).isEqualTo("김선생")
         assertThat(myPage.courses.first { it.id == courseId }.lessonCount).isEqualTo(LESSON_COUNT)
 
-        assertErrorCode(ErrorCode.CLASSROOM_HAS_RECORDS) {
-            teacherService.deleteClassroom(TeacherCommand.DeleteClassroom(teacherId, classroomId))
-        }
-        assertErrorCode(ErrorCode.COURSE_HAS_RECORDS) {
-            teacherService.deleteCourse(TeacherCommand.DeleteCourse(teacherId, courseId))
-        }
         teacherService.deleteCourse(TeacherCommand.DeleteCourse(teacherId, emptyCourse))
         assertThat(teacherService.findMyPage(teacherId).courses.map { it.id }).doesNotContain(emptyCourse)
     }

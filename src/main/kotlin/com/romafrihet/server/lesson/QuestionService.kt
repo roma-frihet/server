@@ -7,8 +7,6 @@ import com.romafrihet.server.course.CourseRepository
 import com.romafrihet.server.course.getOwned
 import com.romafrihet.server.lesson.command.QuestionCommand
 import com.romafrihet.server.lesson.dto.QuestionDto
-import com.romafrihet.server.lesson.event.QuestionImagesRemovedEvent
-import org.springframework.context.ApplicationEventPublisher
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Propagation
 import org.springframework.transaction.annotation.Transactional
@@ -17,12 +15,11 @@ import org.springframework.transaction.annotation.Transactional
 @Transactional(readOnly = true)
 class QuestionService(
     private val questionRepository: QuestionRepository,
-    private val questionImageRepository: QuestionImageRepository,
     private val courseRepository: CourseRepository,
     private val lessonOpeningRepository: LessonOpeningRepository,
     private val questionContentValidator: QuestionContentValidator,
     private val questionImageUrlResolver: QuestionImageUrlResolver,
-    private val eventPublisher: ApplicationEventPublisher,
+    private val questionImageCleaner: QuestionImageCleaner,
     private val lessonRepository: LessonRepository,
     private val attemptRepository: AttemptRepository,
 ) {
@@ -80,28 +77,17 @@ class QuestionService(
 
         val previousImages = question.imageIds()
         question.update(command)
-        removeUnusedImages(previousImages - question.imageIds().toSet())
+        questionImageCleaner.removeUnused(previousImages - question.imageIds().toSet())
     }
 
     @Transactional
     fun delete(command: QuestionCommand.Delete) {
         val question = questionRepository.getOwned(command.questionId, command.userId)
-        validateEditable(requireNotNull(question.course.id), question.lessonNumber)
+        validateNoAttempts(requireNotNull(question.course.id), question.lessonNumber)
 
         val images = question.imageIds()
         questionRepository.delete(question)
-        removeUnusedImages(images)
-    }
-
-    /** 같은 이미지를 다른 문제나 보기가 쓰고 있을 수 있어, 변경을 반영한 뒤 참조가 없는 이미지만 지운다. */
-    private fun removeUnusedImages(imageIds: List<Long>) {
-        if (imageIds.isEmpty()) return
-        questionRepository.flush()
-        val used =
-            questionRepository.findQuestionImageIds(imageIds) + questionRepository.findOptionImageIds(imageIds)
-        val unused = questionImageRepository.findAllById(imageIds.toSet() - used.toSet())
-        questionImageRepository.deleteAllInBatch(unused)
-        if (unused.isNotEmpty()) eventPublisher.publishEvent(QuestionImagesRemovedEvent(unused.map { it.storagePath }))
+        questionImageCleaner.removeUnused(images)
     }
 
     private fun validateLessonNumber(courseId: Long, lessonNumber: Int) {
@@ -110,7 +96,10 @@ class QuestionService(
         }
     }
 
-    /** 문제 수가 바뀌면 이미 푼 학생과 점수 분모가 달라지므로, 연 적 있는 차시에는 더하거나 지우지 못한다. */
+    /**
+     * 문제를 더하거나 내용을 바꿀 때의 조건. 이미 연 차시에 문제가 늘면 점수의 분모가 달라져
+     * 먼저 푼 학생과 나중에 푼 학생을 비교할 수 없게 된다.
+     */
     private fun validateEditable(courseId: Long, lessonNumber: Int) {
         val locked =
             lessonOpeningRepository.existsByClassroomCourseIdAndLessonNumberAndClosedAtIsNull(courseId, lessonNumber) ||
@@ -120,5 +109,16 @@ class QuestionService(
                 ) ||
                 attemptRepository.existsByClassroomCourseIdAndLessonNumber(courseId, lessonNumber)
         assertCheck(!locked) { ErrorCode.LESSON_LOCKED_BY_OPENING }
+    }
+
+    /**
+     * 지울 때의 조건. 더하는 것과 달리 연 적이 있다는 것만으로는 막지 않는다. 아무도 풀지
+     * 않았다면 지워도 틀어질 기록이 없다. 푼 사람이 있으면 분모가 줄어 이미 매긴 점수가
+     * 거짓이 되므로 그때만 막는다.
+     */
+    private fun validateNoAttempts(courseId: Long, lessonNumber: Int) {
+        assertCheck(!attemptRepository.existsByClassroomCourseIdAndLessonNumber(courseId, lessonNumber)) {
+            ErrorCode.LESSON_HAS_ATTEMPTS
+        }
     }
 }

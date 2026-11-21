@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PatchMapping
 import org.springframework.web.bind.annotation.PathVariable
@@ -52,4 +53,14 @@ class LessonTeacherController(private val lessonService: LessonService) : BaseCo
         @PathVariable lessonNumber: Int,
         @Valid @RequestBody request: LessonRequest.Save,
     ) = lessonService.rename(request.toRenameCommand(getUserId(), courseId, lessonNumber))
+
+    @Operation(
+        operationId = "deleteLesson",
+        summary = "차시 삭제",
+        description = "그 차시의 문제와 연 기록도 함께 지웁니다. 학생이 푼 적이 있으면 지울 수 없습니다.",
+    )
+    @DeleteMapping("/{lessonNumber}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun delete(@PathVariable courseId: Long, @PathVariable lessonNumber: Int) =
+        lessonService.delete(LessonCommand.Delete(getUserId(), courseId, lessonNumber))
 }
