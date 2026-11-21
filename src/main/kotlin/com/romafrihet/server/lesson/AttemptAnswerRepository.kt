@@ -2,6 +2,7 @@ package com.romafrihet.server.lesson
 
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
+import org.springframework.data.jpa.repository.Modifying
 import org.springframework.data.jpa.repository.Query
 import java.time.LocalDateTime
 import java.util.UUID
@@ -37,4 +38,18 @@ interface AttemptAnswerRepository : JpaRepository<AttemptAnswer, Long> {
     fun findWrongAnswers(classroomId: Long, userId: UUID, lessonNumbers: Collection<Int>): List<AttemptAnswer>
 
     fun deleteAllByAttemptId(attemptId: Long)
+
+    /** 반이나 차시를 통째로 지울 때 쓴다. 응시 하나씩 돌면 인원수만큼 쿼리가 나가므로 한 번에 지운다. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("delete from AttemptAnswer a where a.attempt.classroom.id in :classroomIds")
+    fun deleteAllByClassroomIdIn(classroomIds: Collection<Long>)
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        delete from AttemptAnswer a
+        where a.attempt.classroom.course.id = :courseId and a.attempt.lessonNumber = :lessonNumber
+        """,
+    )
+    fun deleteAllByCourseIdAndLessonNumber(courseId: Long, lessonNumber: Int)
 }

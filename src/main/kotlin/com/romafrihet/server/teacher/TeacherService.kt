@@ -3,13 +3,14 @@ package com.romafrihet.server.teacher
 import com.romafrihet.server.classroom.ClassroomMembershipRepository
 import com.romafrihet.server.classroom.ClassroomRepository
 import com.romafrihet.server.classroom.getOwned
-import com.romafrihet.server.common.exception.ErrorCode
-import com.romafrihet.server.common.exception.assertCheck
 import com.romafrihet.server.course.CourseRepository
 import com.romafrihet.server.course.getOwned
+import com.romafrihet.server.lesson.AttemptCleaner
 import com.romafrihet.server.lesson.LessonOpeningRepository
 import com.romafrihet.server.lesson.LessonRepository
-import com.romafrihet.server.lesson.QuestionRepository
+import com.romafrihet.server.lesson.QuestionCleaner
+import com.romafrihet.server.lesson.command.AttemptCommand
+import com.romafrihet.server.lesson.command.QuestionCommand
 import com.romafrihet.server.school.SchoolRepository
 import com.romafrihet.server.school.getOrThrow
 import com.romafrihet.server.teacher.command.TeacherCommand
@@ -31,7 +32,8 @@ class TeacherService(
     private val classroomMembershipRepository: ClassroomMembershipRepository,
     private val lessonRepository: LessonRepository,
     private val lessonOpeningRepository: LessonOpeningRepository,
-    private val questionRepository: QuestionRepository,
+    private val questionCleaner: QuestionCleaner,
+    private val attemptCleaner: AttemptCleaner,
 ) {
     @Transactional
     fun saveProfile(command: TeacherCommand.SaveProfile) {
@@ -79,25 +81,36 @@ class TeacherService(
         )
     }
 
-    /** 학생 기록이 사라지지 않도록 기록이 있는 반과 수업은 지우지 않는다. */
+    /**
+     * 반을 지우면 그 반의 기록도 함께 사라진다.
+     *
+     * 전에는 기록이 하나라도 있으면 막았는데, 차시를 한 번 열면 연 기록이 남고 닫아도
+     * 지워지지 않아 그 반을 영영 지울 수 없었다. 잘못 만든 반을 되돌릴 방법이 없다는 뜻이라
+     * 교사가 직접 지울 수 있게 열었다. 무엇이 함께 사라지는지는 화면에서 확인을 받는다.
+     */
     @Transactional
     fun deleteClassroom(command: TeacherCommand.DeleteClassroom) {
         val classroom = classroomRepository.getOwned(command.classroomId, command.userId)
-        assertCheck(
-            !classroomMembershipRepository.existsByClassroomId(command.classroomId) &&
-                !lessonOpeningRepository.existsByClassroomId(command.classroomId),
-        ) { ErrorCode.CLASSROOM_HAS_RECORDS }
+        deleteClassrooms(listOf(command.classroomId))
         classroomRepository.delete(classroom)
     }
 
     @Transactional
     fun deleteCourse(command: TeacherCommand.DeleteCourse) {
         val course = courseRepository.getOwned(command.courseId, command.userId)
-        assertCheck(
-            !classroomRepository.existsByCourseId(command.courseId) &&
-                !questionRepository.existsByCourseId(command.courseId),
-        ) { ErrorCode.COURSE_HAS_RECORDS }
+        val classrooms = classroomRepository.findAllByCourseIdOrderByClassNoAsc(command.courseId)
+        deleteClassrooms(classrooms.mapNotNull { it.id })
+        classroomRepository.deleteAll(classrooms)
+        questionCleaner.deleteAllInCourse(QuestionCommand.DeleteAllInCourse(command.courseId))
         lessonRepository.deleteAllByCourseId(command.courseId)
         courseRepository.delete(course)
+    }
+
+    /** 외래 키 순서대로 응시 → 연결 → 연 기록을 지운다. 반 자체는 부르는 쪽에서 지운다. */
+    private fun deleteClassrooms(classroomIds: List<Long>) {
+        if (classroomIds.isEmpty()) return
+        attemptCleaner.deleteAllInClassrooms(AttemptCommand.DeleteAllInClassrooms(classroomIds))
+        classroomMembershipRepository.deleteAllByClassroomIdIn(classroomIds)
+        lessonOpeningRepository.deleteAllByClassroomIdIn(classroomIds)
     }
 }

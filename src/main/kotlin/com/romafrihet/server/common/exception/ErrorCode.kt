@@ -35,17 +35,15 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     JOIN_CODE_INVALID(HttpStatus.BAD_REQUEST, "CL002", "합류 코드가 없거나 만료되었습니다."),
     ALREADY_ENROLLED(HttpStatus.CONFLICT, "CL003", "이미 연결된 수업입니다."),
     JOIN_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "CL005", "시간이 지난 합류 코드입니다."),
-    CLASSROOM_HAS_RECORDS(HttpStatus.CONFLICT, "CL006", "학생이나 차시 기록이 있는 반은 삭제할 수 없습니다."),
 
     // Course
     COURSE_DUPLICATED(HttpStatus.CONFLICT, "CO001", "같은 학년과 과목의 수업이 이미 있습니다."),
-    COURSE_HAS_RECORDS(HttpStatus.CONFLICT, "CO002", "반이나 문제가 있는 수업은 삭제할 수 없습니다."),
 
     // Lesson
     LESSON_ALREADY_OPEN(HttpStatus.CONFLICT, "LS001", "이 반에 이미 열린 차시가 있습니다."),
     LESSON_NOT_OPEN(HttpStatus.CONFLICT, "LS002", "열려 있는 차시가 아닙니다."),
     LESSON_HAS_NO_QUESTIONS(HttpStatus.CONFLICT, "LS003", "문제가 없는 차시는 열 수 없습니다."),
-    LESSON_LOCKED_BY_OPENING(HttpStatus.CONFLICT, "LS004", "열렸거나 마감했거나 제출이 있는 차시에는 문제를 더하거나 지울 수 없습니다."),
+    LESSON_LOCKED_BY_OPENING(HttpStatus.CONFLICT, "LS004", "이미 연 차시에는 문제를 더할 수 없습니다."),
     QUESTION_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "LS005", "문제 글이나 이미지가 필요합니다."),
     QUESTION_OPTIONS_INVALID(HttpStatus.BAD_REQUEST, "LS006", "보기 또는 정답 구성이 올바르지 않습니다."),
     QUESTION_IMAGE_NOT_USABLE(HttpStatus.BAD_REQUEST, "LS007", "사용할 수 없는 이미지입니다."),
@@ -60,6 +58,7 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     ATTEMPT_NOT_DONE(HttpStatus.CONFLICT, "LS017", "아직 다 풀지 않은 차시입니다."),
     ANSWER_REQUIRED(HttpStatus.BAD_REQUEST, "LS018", "답을 고르거나 입력해야 합니다."),
     ANSWER_NOT_FINALIZED(HttpStatus.CONFLICT, "LS019", "아직 확정되지 않은 문제는 결과를 바꿀 수 없습니다."),
+    LESSON_HAS_ATTEMPTS(HttpStatus.CONFLICT, "LS020", "학생이 푼 차시입니다. 문제를 지우면 이미 매긴 점수가 달라집니다."),
 
     // Student profile
     STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),

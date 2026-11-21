@@ -166,7 +166,14 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 | 내 반 목록 | `GET /api/v1/teacher/classrooms` |
 | 반 삭제 | `DELETE /api/v1/teacher/classrooms/{classroomId}` |
 
-**삭제는 비어 있을 때만 됩니다.** 수업에 반이나 문제가 있으면, 반에 학생이나 기록이 있으면 거절합니다. 삭제 버튼을 누르기 전에 막아 주거나, 거절 메시지를 그대로 보여 주면 됩니다.
+**삭제하면 안에 있는 것이 함께 사라집니다.** 비어 있지 않아도 지울 수 있습니다.
+
+- 반을 지우면 → 그 반의 학생 연결, 연 기록, 응시와 점수
+- 수업을 지우면 → 그 수업의 반 전부(위 포함), 차시, 문제
+
+학생 계정과 가입 정보는 남습니다. 연결만 끊깁니다.
+
+되돌릴 수 없으므로 **화면에서 확인을 받아야 합니다.** 무엇이 몇 개 사라지는지 숫자로 보여 주세요. 반 수와 차시 수는 `GET /api/v1/teacher/mypage`, 학생 수는 `GET /api/v1/teacher/classrooms`에 이미 들어 있어 따로 부를 API는 없습니다.
 
 ### 5-3. 학생 모으기
 
@@ -193,13 +200,20 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 - 해설 — 마감 후에만 학생에게 보입니다
 - 이미지 — 문제 본문과 보기 각각에 붙일 수 있습니다
 
-**이미 연 적 있는 차시에는 문제를 더하거나 지울 수 없습니다.** 점수의 분모가 달라지기 때문입니다. 내용 수정은 되지만 정답이나 보기를 바꾸는 건 막힙니다. 화면에서 해당 차시의 추가/삭제 버튼을 비활성화해 주세요.
+더하는 것과 지우는 것의 기준이 다릅니다.
+
+- **이미 연 적 있는 차시에는 문제를 더할 수 없습니다** (`LS004`). 문제가 늘면 점수의 분모가 달라져 먼저 푼 학생과 비교할 수 없게 됩니다.
+- **지우는 것은 푼 학생이 있을 때만 막힙니다** (`LS020`). 열어만 두고 아무도 풀지 않았다면 지울 수 있습니다.
+- 푼 학생이 있으면 내용 수정은 되지만 정답이나 보기를 바꾸는 건 막힙니다 (`LS012`).
+
+**차시를 지우면 그 차시의 문제와 연 기록도 함께 사라집니다.** 번호는 당겨지지 않습니다 — 2차시를 지워도 3차시는 그대로 3차시입니다.
 
 | | API |
 |---|---|
 | 차시 목록 | `GET /api/v1/teacher/courses/{courseId}/lessons` |
 | 차시 추가 | `POST /api/v1/teacher/courses/{courseId}/lessons` |
 | 차시 이름 수정 | `PATCH /api/v1/teacher/courses/{courseId}/lessons/{lessonNumber}` |
+| 차시 삭제 | `DELETE /api/v1/teacher/courses/{courseId}/lessons/{lessonNumber}` |
 | 문제 목록 | `GET /api/v1/teacher/courses/{courseId}/lessons/{lessonNumber}/questions` |
 | 문제 추가 | `POST /api/v1/teacher/courses/{courseId}/lessons/{lessonNumber}/questions` |
 | 문제 상세 | `GET /api/v1/teacher/questions/{questionId}` |

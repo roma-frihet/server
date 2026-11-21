@@ -97,16 +97,20 @@ class LessonTeacherFlowTest : TeacherFlowFixture() {
         }
     }
 
+    /**
+     * 더하는 것과 지우는 것의 기준이 다르다. 문제가 늘면 먼저 푼 학생과 분모가 달라지므로
+     * 연 차시에는 더할 수 없다. 반대로 아무도 풀지 않았다면 지워도 틀어질 기록이 없다.
+     */
     @Test
-    fun `열린 차시의 문제는 추가 수정 삭제할 수 없다`() {
+    fun `열린 차시에 문제를 더할 수는 없지만 푼 사람이 없으면 지울 수는 있다`() {
         val classroomId = joinedClassroom()
         val questionId = createQuestion()
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, 3))
 
         assertErrorCode(ErrorCode.LESSON_LOCKED_BY_OPENING) { createQuestion() }
-        assertErrorCode(ErrorCode.LESSON_LOCKED_BY_OPENING) {
-            questionService.delete(QuestionCommand.Delete(teacherId, questionId))
-        }
+
+        questionService.delete(QuestionCommand.Delete(teacherId, questionId))
+        assertThat(questionRepository.findById(questionId)).isEmpty
     }
 
     @Test
