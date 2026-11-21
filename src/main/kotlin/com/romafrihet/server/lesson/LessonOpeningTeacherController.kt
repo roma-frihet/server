@@ -3,11 +3,9 @@ package com.romafrihet.server.lesson
 import com.romafrihet.server.common.web.ApiPaths
 import com.romafrihet.server.common.web.BaseController
 import com.romafrihet.server.lesson.command.LessonOpeningCommand
-import com.romafrihet.server.lesson.rqrs.LessonOpeningResponse
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
 import org.springframework.http.HttpStatus
-import org.springframework.web.bind.annotation.GetMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
 import org.springframework.web.bind.annotation.RequestMapping
@@ -18,14 +16,6 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping(ApiPaths.TEACHER_V1)
 class LessonOpeningTeacherController(private val lessonOpeningService: LessonOpeningService) : BaseController {
-    @Operation(
-        operationId = "findLessonOpenings",
-        summary = "반별 현재 차시와 열림 현황",
-    )
-    @GetMapping("/lesson-openings")
-    fun findStatuses(): List<LessonOpeningResponse.Result> =
-        lessonOpeningService.findStatuses(getUserId()).map(LessonOpeningResponse.Result::of)
-
     @Operation(
         operationId = "openLesson",
         summary = "차시 열기",
