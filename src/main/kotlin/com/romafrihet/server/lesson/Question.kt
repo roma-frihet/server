@@ -27,6 +27,9 @@ class Question private constructor(
     type: QuestionType,
     content: String?,
     imageId: Long?,
+    timeLimitSec: Int,
+    explanation: String?,
+    displayOrder: Int,
 ) : BaseTimeEntity() {
     @Id
     @GeneratedValue(strategy = GenerationType.SEQUENCE, generator = "questions_seq")
@@ -55,6 +58,18 @@ class Question private constructor(
     var imageId: Long? = imageId
         protected set
 
+    @Column(name = "time_limit_sec", nullable = false)
+    var timeLimitSec: Int = timeLimitSec
+        protected set
+
+    @Column(columnDefinition = "text")
+    var explanation: String? = explanation
+        protected set
+
+    @Column(name = "display_order", nullable = false)
+    var displayOrder: Int = displayOrder
+        protected set
+
     @OneToMany(mappedBy = "question", cascade = [CascadeType.ALL], orphanRemoval = true)
     @OrderBy("displayOrder ASC")
     val options: MutableList<QuestionOption> = mutableListOf()
@@ -79,8 +94,27 @@ class Question private constructor(
         type = command.type
         content = command.content
         imageId = command.imageId
+        timeLimitSec = command.timeLimitSec
+        explanation = command.explanation
         replaceOptions(command.options)
     }
+
+    /** 제출이 생긴 뒤에는 본문 오타와 해설만 고친다. 나머지는 채점 결과와 어긋난다. */
+    fun updateTextOnly(command: QuestionCommand.Update) {
+        content = command.content
+        explanation = command.explanation
+    }
+
+    /** 제출이 있는 문제에서 본문과 해설 말고 바뀐 값이 있는지 본다. */
+    fun hasScoringChange(command: QuestionCommand.Update): Boolean = type != command.type ||
+        imageId != command.imageId ||
+        timeLimitSec != command.timeLimitSec ||
+        options.size != command.options.size ||
+        options.zip(command.options).any { (option, input) ->
+            option.content != input.content ||
+                option.imageId != input.imageId ||
+                option.isCorrect != input.isCorrect
+        }
 
     /**
      * Hibernate는 삭제보다 삽입을 먼저 실행하므로 전부 지우고 새로 넣으면
@@ -97,12 +131,15 @@ class Question private constructor(
     }
 
     companion object {
-        fun create(course: Course, command: QuestionCommand.Create): Question = Question(
+        fun create(course: Course, displayOrder: Int, command: QuestionCommand.Create): Question = Question(
             course = course,
             lessonNumber = command.lessonNumber,
             type = command.type,
             content = command.content,
             imageId = command.imageId,
+            timeLimitSec = command.timeLimitSec,
+            explanation = command.explanation,
+            displayOrder = displayOrder,
         ).apply { command.options.forEach(::addOption) }
     }
 }

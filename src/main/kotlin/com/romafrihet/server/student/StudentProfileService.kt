@@ -15,9 +15,14 @@ import java.util.UUID
 class StudentProfileService(
     private val studentProfileRepository: StudentProfileRepository,
     private val schoolRepository: SchoolRepository,
+    private val studentLoginEmailPolicy: StudentLoginEmailPolicy,
 ) {
     @Transactional
     fun create(command: StudentProfileCommand.Create): StudentProfileDto {
+        // 로그인 계정이 곧 학번이다. 남의 학번으로 프로필을 만들지 못하게 가입에 쓴 계정과 대조한다.
+        assertCheck(studentLoginEmailPolicy.matches(command.loginEmail, command)) {
+            ErrorCode.STUDENT_LOGIN_EMAIL_MISMATCH
+        }
         assertCheck(!studentProfileRepository.existsByUserId(command.userId)) {
             ErrorCode.STUDENT_PROFILE_ALREADY_EXISTS
         }
@@ -43,5 +48,6 @@ class StudentProfileService(
         seatNumber = profile.seatNumber,
         studentNumber = profile.studentNumber(),
         name = profile.name,
+        mustChangePassword = profile.mustChangePassword,
     )
 }

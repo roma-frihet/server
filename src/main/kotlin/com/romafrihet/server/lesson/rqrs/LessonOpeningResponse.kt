@@ -1,5 +1,6 @@
 package com.romafrihet.server.lesson.rqrs
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.romafrihet.server.lesson.LessonStatus
 import com.romafrihet.server.lesson.dto.ClassroomLessonStatusDto
 import com.romafrihet.server.lesson.dto.OpenedLessonDto
@@ -11,16 +12,17 @@ class LessonOpeningResponse private constructor() {
     data class Result(
         val classroomId: Long,
         val courseId: Long,
-        val classroomName: String,
+        val classNo: Int,
         val currentLessonNumber: Int?,
         val latestLessonNumber: Int?,
+        @get:JsonProperty("isOpen")
         val isOpen: Boolean,
     ) {
         companion object {
             fun of(dto: ClassroomLessonStatusDto) = Result(
                 classroomId = dto.classroomId,
                 courseId = dto.courseId,
-                classroomName = dto.classroomName,
+                classNo = dto.classNo,
                 currentLessonNumber = dto.currentLessonNumber,
                 latestLessonNumber = dto.latestLessonNumber,
                 isOpen = dto.isOpen,

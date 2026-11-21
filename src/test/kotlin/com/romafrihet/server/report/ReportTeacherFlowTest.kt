@@ -1,11 +1,7 @@
 package com.romafrihet.server.report
 
 import com.romafrihet.server.TeacherFlowFixture
-import com.romafrihet.server.classroom.command.ClassroomMembershipCommand
 import com.romafrihet.server.common.exception.ErrorCode
-import com.romafrihet.server.lesson.LessonSubmission
-import com.romafrihet.server.lesson.LessonSubmissionRepository
-import com.romafrihet.server.lesson.QuestionRepository
 import com.romafrihet.server.lesson.command.LessonOpeningCommand
 import com.romafrihet.server.report.command.ReportCommand
 import com.romafrihet.server.teacher.TeacherService
@@ -23,33 +19,12 @@ class ReportTeacherFlowTest : TeacherFlowFixture() {
     @Autowired
     private lateinit var teacherService: TeacherService
 
-    @Autowired
-    private lateinit var questionRepository: QuestionRepository
-
-    @Autowired
-    private lateinit var submissionRepository: LessonSubmissionRepository
-
-    /** 학생 제출 API 없이 채점 결과만 만든다. */
-    private fun submit(classroomId: Long, userId: UUID, questionId: Long, correct: Boolean) {
-        val question = requireNotNull(questionRepository.findWithOptions(questionId, teacherId))
-        val option = question.options.first { it.isCorrect == correct }
-        val submission =
-            LessonSubmission.create(
-                classroomRepository.findById(classroomId).orElseThrow(),
-                question.lessonNumber,
-                userId,
-                1,
-            )
-        submission.addAnswer(question, option.id, null)
-        submissionRepository.save(submission)
-    }
-
     private fun change(classroomId: Long, lessonNumber: Int) =
         LessonOpeningCommand.Change(teacherId, classroomId, lessonNumber)
 
     @Test
     fun `대시보드와 학생 관리는 점수 하락과 미응답을 알려 준다`() {
-        val classroomId = approvedClassroom()
+        val classroomId = joinedClassroom()
         val first = createQuestion(lessonNumber = 1)
         val second = createQuestion(lessonNumber = 2)
         createQuestion(lessonNumber = 3)
@@ -76,10 +51,9 @@ class ReportTeacherFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `점수는 반과 차시로 거르고 페이지로 나누며 미제출 학생도 보여 준다`() {
-        val classroomId = approvedClassroom()
+        val classroomId = joinedClassroom()
         val second = UUID.randomUUID()
-        val pending = requireNotNull(request(classroomId, second, "김영희", "20102").id)
-        membershipService.approve(ClassroomMembershipCommand.Decide(teacherId, classroomId, pending))
+        request(classroomId, second, "김영희", "20102")
         val first = createQuestion(lessonNumber = 1)
         createQuestion(lessonNumber = 2)
         openingService.open(change(classroomId, 1))
@@ -103,7 +77,7 @@ class ReportTeacherFlowTest : TeacherFlowFixture() {
 
     @Test
     fun `마이페이지는 수업과 반을 보여 주고 기록이 있는 반은 지우지 않는다`() {
-        val classroomId = approvedClassroom()
+        val classroomId = joinedClassroom()
         teacherService.saveProfile(TeacherCommand.SaveProfile(teacherId, schoolId, "김선생"))
         val emptyCourse = createCourse("미술")
 

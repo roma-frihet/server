@@ -8,6 +8,7 @@ import com.romafrihet.server.course.CourseRepository
 import com.romafrihet.server.course.getOwned
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -18,18 +19,20 @@ class ClassroomService(
     private val courseRepository: CourseRepository,
     private val classroomMembershipRepository: ClassroomMembershipRepository,
     private val joinCodeGenerator: JoinCodeGenerator,
+    private val clock: Clock,
 ) {
     @Transactional
     fun create(command: ClassroomCommand.Create): ClassroomDto {
         val course = courseRepository.getOwned(command.courseId, command.userId)
-        assertCheck(!classroomRepository.existsByCourseIdAndName(command.courseId, command.name)) {
-            ErrorCode.CLASSROOM_NAME_DUPLICATED
+        assertCheck(!classroomRepository.existsByCourseIdAndClassNo(command.courseId, command.classNo)) {
+            ErrorCode.CLASSROOM_DUPLICATED
         }
         return toDto(classroomRepository.save(Classroom.create(course, command)), studentCount = 0)
     }
 
     fun findAll(userId: UUID): List<ClassroomDto> {
-        val classrooms = classroomRepository.findAllByCourseUserIdOrderByNameAsc(userId)
+        val classrooms =
+            classroomRepository.findAllByCourseUserIdOrderByCourseIdAscClassNoAsc(userId)
         val counts = studentCounts(classrooms.map { requireNotNull(it.id) })
         return classrooms.map { toDto(it, counts[it.id] ?: 0) }
     }
@@ -40,7 +43,7 @@ class ClassroomService(
         val classroom = classroomRepository.getOwned(command.classroomId, command.userId)
         classroom.issueJoinCode(
             code = joinCodeGenerator.generate(),
-            expiresAt = LocalDateTime.now().plusMinutes(JOIN_CODE_VALID_MINUTES),
+            expiresAt = LocalDateTime.now(clock).plusMinutes(JOIN_CODE_VALID_MINUTES),
         )
         return toDto(classroom, studentCounts(listOf(command.classroomId))[command.classroomId] ?: 0)
     }
@@ -52,19 +55,21 @@ class ClassroomService(
     }
 
     private fun studentCounts(classroomIds: List<Long>): Map<Long, Long> = classroomMembershipRepository
-        .findStudentCounts(classroomIds, MembershipStatus.APPROVED)
+        .findStudentCounts(classroomIds)
         .associate { it.classroomId to it.studentCount }
 
     private fun toDto(classroom: Classroom, studentCount: Long) = ClassroomDto(
         id = requireNotNull(classroom.id),
         courseId = requireNotNull(classroom.course.id),
-        name = classroom.name,
+        grade = classroom.course.grade,
+        subjectName = classroom.course.subject.name,
+        classNo = classroom.classNo,
         joinCode = classroom.joinCode,
         joinCodeExpiresAt = classroom.joinCodeExpiresAt,
         studentCount = studentCount,
     )
 
     private companion object {
-        const val JOIN_CODE_VALID_MINUTES = 3L
+        const val JOIN_CODE_VALID_MINUTES = 5L
     }
 }

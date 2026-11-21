@@ -1,5 +1,6 @@
 package com.romafrihet.server.architecture
 
+import com.fasterxml.jackson.annotation.JsonProperty
 import com.tngtech.archunit.base.DescribedPredicate.describe
 import com.tngtech.archunit.core.domain.JavaClass
 import com.tngtech.archunit.core.domain.JavaClasses
@@ -113,6 +114,17 @@ class ArchitectureTest {
             .check(classes)
     }
 
+    @ArchTest
+    fun `is-prefixed booleans in rqrs declare their json name`(classes: JavaClasses) {
+        methods()
+            .that()
+            .areDeclaredInClassesThat()
+            .resideInAPackage("..rqrs..")
+            .and(isPrefixedBooleanGetter)
+            .should(declareJsonProperty)
+            .check(classes)
+    }
+
     private companion object {
         val notReturnEntity =
             condition<JavaMethod>("not return an entity") { method ->
@@ -133,6 +145,33 @@ class ArchitectureTest {
                 method.rawParameterTypes.any { it.isEquivalentTo(Continuation::class.java) } to
                     "${method.fullName} is a suspend function under @Transactional"
             }
+
+        // Jackson serializes a Kotlin `isOpen` property as "isOpen", but springdoc documents it
+        // as "open". The spec then lies about every such field, and a client generated from the
+        // spec sends a name the server rejects. @JsonProperty pins both to the same name.
+        val isPrefixedBooleanGetter =
+            describe<JavaMethod>("is a getter for an is-prefixed boolean") { method ->
+                method.rawParameterTypes.isEmpty() &&
+                    method.rawReturnType.name in BOOLEAN_TYPES &&
+                    Regex("^is[A-Z]").containsMatchIn(method.name)
+            }
+
+        // 어노테이션만 붙이고 값을 비우면 springdoc이 다시 "open"으로 적는다.
+        // 이름까지 같아야 스펙과 실제가 어긋나지 않는다.
+        val declareJsonProperty =
+            condition<JavaMethod>("be annotated with @JsonProperty(\"<property name>\")") { method ->
+                val declared = method
+                    .tryGetAnnotationOfType(JsonProperty::class.java)
+                    .map(JsonProperty::value)
+                    .orElse(null)
+
+                (declared != method.name) to
+                    "${method.fullName} is an is-prefixed boolean whose @JsonProperty is " +
+                    "${declared?.let { "\"$it\"" } ?: "missing"}; it must be \"${method.name}\" or " +
+                    "springdoc documents a different name than Jackson sends"
+            }
+
+        val BOOLEAN_TYPES = setOf("boolean", "java.lang.Boolean")
 
         private fun <T : Any> condition(description: String, violation: (T) -> Pair<Boolean, String>) =
             object : ArchCondition<T>(description) {

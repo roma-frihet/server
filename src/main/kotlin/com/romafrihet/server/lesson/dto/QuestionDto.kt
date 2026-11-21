@@ -9,6 +9,9 @@ data class QuestionDto(
     val content: String?,
     val imageId: Long?,
     val imageUrl: String?,
+    val timeLimitSec: Int,
+    val explanation: String?,
+    val displayOrder: Int,
     val options: List<QuestionOptionDto>,
 )
 

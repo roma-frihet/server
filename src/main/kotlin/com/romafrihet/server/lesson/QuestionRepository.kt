@@ -25,10 +25,22 @@ interface QuestionRepository : JpaRepository<Question, Long> {
         select distinct q from Question q
         left join fetch q.options
         where q.course.id = :courseId and q.lessonNumber = :lessonNumber
-        order by q.id
+        order by q.displayOrder
         """,
     )
     fun findAllWithOptions(courseId: Long, lessonNumber: Int): List<Question>
+
+    fun countByCourseIdAndLessonNumber(courseId: Long, lessonNumber: Int): Int
+
+    /**
+     * 다음 문제가 쓸 순번. 개수로 세면 가운데 문제를 지웠을 때 이미 쓰는 번호와 겹친다.
+     * (0,1,2에서 1을 지우면 0,2가 남는데 개수는 2라 2를 다시 주게 된다.)
+     */
+    @Query(
+        "select coalesce(max(q.displayOrder) + 1, 0) from Question q " +
+            "where q.course.id = :courseId and q.lessonNumber = :lessonNumber",
+    )
+    fun nextDisplayOrder(courseId: Long, lessonNumber: Int): Int
 
     @Query("select q from Question q left join fetch q.options where q.id = :id and q.course.userId = :userId")
     fun findWithOptions(id: Long, userId: UUID): Question?

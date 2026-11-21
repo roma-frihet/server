@@ -2,7 +2,7 @@ package com.romafrihet.server.report.dto
 
 data class StudentLessonScoreDto(
     val classroomId: Long,
-    val classroomName: String,
+    val classNo: Int,
     val membershipId: Long,
     val studentName: String,
     val studentNumber: String,

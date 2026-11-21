@@ -13,6 +13,8 @@ class QuestionCommand private constructor() {
         val type: QuestionType,
         val content: String?,
         val imageId: Long?,
+        val timeLimitSec: Int,
+        val explanation: String?,
         val options: List<Option>,
     )
 
@@ -22,6 +24,8 @@ class QuestionCommand private constructor() {
         val type: QuestionType,
         val content: String?,
         val imageId: Long?,
+        val timeLimitSec: Int,
+        val explanation: String?,
         val options: List<Option>,
     )
 
@@ -30,8 +34,6 @@ class QuestionCommand private constructor() {
     data class Get(val userId: UUID, val questionId: Long)
 
     data class Delete(val userId: UUID, val questionId: Long)
-
-    data class StudentQuery(val userId: UUID, val classroomId: Long, val lessonNumber: Int)
 
     data class UploadImage(val userId: UUID, val bytes: ByteArray) {
         override fun equals(other: Any?): Boolean =

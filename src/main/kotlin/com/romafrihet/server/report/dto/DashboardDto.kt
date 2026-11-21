@@ -24,7 +24,7 @@ data class DashboardSetupDto(
 
 data class LiveLessonDto(
     val classroomId: Long,
-    val classroomName: String,
+    val classNo: Int,
     val lessonNumber: Int,
     val lessonTitle: String,
     val responseCount: Int,
@@ -37,7 +37,7 @@ data class DashboardLessonDto(val lessonNumber: Int, val title: String)
 
 data class DashboardClassroomDto(
     val classroomId: Long,
-    val classroomName: String,
+    val classNo: Int,
     val latestAverageCorrect: Double?,
     val latestQuestionCount: Int,
     val lessonStatuses: List<DashboardLessonStatusDto>,
@@ -47,7 +47,7 @@ data class DashboardLessonStatusDto(val lessonNumber: Int, val status: LessonSta
 
 data class WatchStudentDto(
     val classroomId: Long,
-    val classroomName: String,
+    val classNo: Int,
     val membershipId: Long,
     val studentName: String,
     val studentNumber: String,

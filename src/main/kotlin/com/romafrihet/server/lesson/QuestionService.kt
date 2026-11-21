@@ -24,7 +24,7 @@ class QuestionService(
     private val questionImageUrlResolver: QuestionImageUrlResolver,
     private val eventPublisher: ApplicationEventPublisher,
     private val lessonRepository: LessonRepository,
-    private val lessonSubmissionRepository: LessonSubmissionRepository,
+    private val attemptRepository: AttemptRepository,
 ) {
     /** 서명 URL 발급은 외부 호출이라 트랜잭션 없이 실행한다. */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -56,13 +56,14 @@ class QuestionService(
             imageId = command.imageId,
             options = command.options,
         )
-        return requireNotNull(questionRepository.save(Question.create(course, command)).id)
+        val displayOrder = questionRepository.nextDisplayOrder(command.courseId, command.lessonNumber)
+        return requireNotNull(questionRepository.save(Question.create(course, displayOrder, command)).id)
     }
 
     @Transactional
     fun update(command: QuestionCommand.Update) {
         val question = questionRepository.getOwned(command.questionId, command.userId)
-        validateEditable(requireNotNull(question.course.id), question.lessonNumber)
+        val courseId = requireNotNull(question.course.id)
         questionContentValidator.validate(
             userId = command.userId,
             type = command.type,
@@ -70,6 +71,12 @@ class QuestionService(
             imageId = command.imageId,
             options = command.options,
         )
+
+        if (attemptRepository.existsByClassroomCourseIdAndLessonNumber(courseId, question.lessonNumber)) {
+            assertCheck(!question.hasScoringChange(command)) { ErrorCode.QUESTION_LOCKED_BY_SUBMISSION }
+            question.updateTextOnly(command)
+            return
+        }
 
         val previousImages = question.imageIds()
         question.update(command)
@@ -103,7 +110,7 @@ class QuestionService(
         }
     }
 
-    /** 저장된 채점 결과와 어긋나지 않도록 열림, 마감, 제출이 있는 차시의 문제는 고치지 못한다. */
+    /** 문제 수가 바뀌면 이미 푼 학생과 점수 분모가 달라지므로, 연 적 있는 차시에는 더하거나 지우지 못한다. */
     private fun validateEditable(courseId: Long, lessonNumber: Int) {
         val locked =
             lessonOpeningRepository.existsByClassroomCourseIdAndLessonNumberAndClosedAtIsNull(courseId, lessonNumber) ||
@@ -111,7 +118,7 @@ class QuestionService(
                     courseId,
                     lessonNumber,
                 ) ||
-                lessonSubmissionRepository.existsByClassroomCourseIdAndLessonNumber(courseId, lessonNumber)
+                attemptRepository.existsByClassroomCourseIdAndLessonNumber(courseId, lessonNumber)
         assertCheck(!locked) { ErrorCode.LESSON_LOCKED_BY_OPENING }
     }
 }

@@ -20,13 +20,20 @@ import org.springframework.web.bind.annotation.RestController
 @RequestMapping("${ApiPaths.API_V1}/classroom-memberships")
 class ClassroomMembershipController(private val classroomMembershipService: ClassroomMembershipService) :
     BaseController {
-    @Operation(summary = "합류 코드로 반 합류 요청", description = "가입 때 저장한 이름과 학번으로 요청합니다.")
+    @Operation(
+        operationId = "joinClassroom",
+        summary = "합류 코드로 반 합류 요청",
+        description = "가입 때 저장한 이름과 학번으로 요청합니다.",
+    )
     @PostMapping
     @ResponseStatus(HttpStatus.CREATED)
     fun join(@Valid @RequestBody request: ClassroomMembershipRequest.Join): ClassroomMembershipResponse.Result =
         ClassroomMembershipResponse.Result.of(classroomMembershipService.join(request.toCommand(getUserId())))
 
-    @Operation(summary = "내 합류 요청과 소속 반 목록")
+    @Operation(
+        operationId = "findMyClassrooms",
+        summary = "내 합류 요청과 소속 반 목록",
+    )
     @GetMapping
     fun findMine(): List<ClassroomMembershipResponse.Result> =
         classroomMembershipService.findAllForStudent(getUserId()).map(ClassroomMembershipResponse.Result::of)

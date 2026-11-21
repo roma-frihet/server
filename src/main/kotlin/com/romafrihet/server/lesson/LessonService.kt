@@ -38,7 +38,7 @@ class LessonService(
     }
 
     private fun find(courseId: Long): List<LessonDto> {
-        val classrooms = classroomRepository.findAllByCourseIdOrderByNameAsc(courseId)
+        val classrooms = classroomRepository.findAllByCourseIdOrderByClassNoAsc(courseId)
         val openings =
             lessonOpeningRepository
                 .findAllByClassroomIdIn(classrooms.map { requireNotNull(it.id) })
@@ -54,7 +54,7 @@ class LessonService(
                     val classroomId = requireNotNull(classroom.id)
                     LessonClassroomStatusDto(
                         classroomId = classroomId,
-                        classroomName = classroom.name,
+                        classNo = classroom.classNo,
                         status = openings[classroomId to lesson.lessonNumber]?.status ?: LessonStatus.PLANNED,
                     )
                 },
