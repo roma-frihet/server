@@ -2,7 +2,6 @@ package com.romafrihet.server.classroom
 
 import com.romafrihet.server.classroom.command.ClassroomCommand
 import com.romafrihet.server.classroom.command.ClassroomMembershipCommand
-import com.romafrihet.server.classroom.rqrs.ClassroomMembershipResponse
 import com.romafrihet.server.classroom.rqrs.ClassroomRequest
 import com.romafrihet.server.classroom.rqrs.ClassroomResponse
 import com.romafrihet.server.common.web.ApiPaths
@@ -64,17 +63,6 @@ class ClassroomTeacherController(
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun closeJoinCode(@PathVariable classroomId: Long) =
         classroomService.closeJoinCode(ClassroomCommand.IssueJoinCode(getUserId(), classroomId))
-
-    @Operation(
-        operationId = "findClassroomMemberships",
-        summary = "반 학생 목록",
-        description = "코드로 연결된 학생입니다. 승인 절차는 없습니다.",
-    )
-    @GetMapping("/{classroomId}/memberships")
-    fun findMemberships(@PathVariable classroomId: Long): List<ClassroomMembershipResponse.Result> =
-        classroomMembershipService
-            .findAllForTeacher(ClassroomMembershipCommand.Query(getUserId(), classroomId))
-            .map(ClassroomMembershipResponse.Result::of)
 
     @Operation(
         operationId = "removeClassroomStudent",

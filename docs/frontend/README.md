@@ -180,7 +180,7 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 |---|---|
 | 코드 발급 | `POST /api/v1/teacher/classrooms/{classroomId}/join-code` |
 | 코드 끄기 | `DELETE /api/v1/teacher/classrooms/{classroomId}/join-code` |
-| 반 학생 목록 | `GET /api/v1/teacher/classrooms/{classroomId}/memberships` |
+| 반 학생 목록 | `GET /api/v1/teacher/classrooms/{classroomId}/students` |
 | 학생 내보내기 | `DELETE /api/v1/teacher/classrooms/{classroomId}/memberships/{membershipId}` |
 
 ### 5-4. 차시와 문제 만들기
@@ -231,7 +231,6 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 | | API |
 |---|---|
 | 대시보드 | `GET /api/v1/teacher/courses/{courseId}/dashboard` |
-| 반별 열림 현황 | `GET /api/v1/teacher/lesson-openings` |
 | 차시 열기 | `POST /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/open` |
 | 차시 닫기 | `POST .../close` |
 | 차시 마감 | `POST .../finish` |
