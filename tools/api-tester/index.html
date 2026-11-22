@@ -249,15 +249,22 @@ const actions={
     refresh();if(S.lessonNumber)await actions.loadQuestions();
   },
   async pickLesson(el){S.lessonNumber=+el.dataset.id;refresh();await actions.loadQuestions()},
+  // 같은 답(공백·대소문자 무시)을 쓴 학생을 한 번에 인정하거나 취소한다
+  async acceptAnswer(el){
+    const d=await call('teacher','POST',`/api/v1/teacher/classrooms/${el.dataset.classroom}/lessons/${S.lessonNumber}/questions/${el.dataset.q}/answer-overrides`,{answerText:el.dataset.text,result:el.dataset.result});
+    log('화면','',null,200,`${d.changedCount}명의 결과를 바꿨습니다.`);
+    await actions.questionStats({dataset:{scope:S.statsScope||'picked'}});
+  },
   async questionStats(el){
     const n=need(S.lessonNumber,'차시를 먼저 선택하세요.');
+    S.statsScope=el.dataset.scope;
     const q=el.dataset.scope==='picked'?`?classroomIds=${classroomId()}`:'';
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/lessons/${n}/question-stats${q}`);
     const pct=(a,b)=>b?Math.round(a*100/b)+'%':'-';
     $('questionStats').innerHTML=d.map(c=>`<h3>${c.classNo}반 ${badge(c.status)} <span class="muted">응답 ${c.responseCount} / ${c.studentCount}명</span></h3>`
       +`<table><tr><th>문제</th><th>정답률</th><th>분포</th></tr>${c.questions.map((x,i)=>`<tr><td>${i+1}. ${esc(x.content??'(이미지)')}</td><td>${pct(x.rightCount,x.answeredCount)} <span class="muted">${x.rightCount}/${x.answeredCount}, 미응답 ${x.noAnswerCount}</span></td><td>${x.type==='MULTIPLE_CHOICE'
         ?x.options.map(o=>`${o.isCorrect?'✔':''}${esc(o.content??'(이미지)')} ${o.count}`).join(' · ')
-        :`<span class="muted">인정: ${x.acceptedAnswers.map(esc).join(', ')}</span><br>${x.answerTexts.map(t=>`${esc(t.answerText)} ${t.count}명${t.rightCount?` (정답 ${t.rightCount})`:''}`).join(' · ')||'-'}`}</td></tr>`).join('')}</table>`).join('')||'<p class="muted">반이 없습니다.</p>';
+        :`<span class="muted">인정: ${x.acceptedAnswers.map(esc).join(', ')}</span><br>${x.answerTexts.map(t=>`${esc(t.answerText)} ${t.count}명${t.rightCount?` (정답 ${t.rightCount})`:''} <button data-act="acceptAnswer" data-classroom="${c.classroomId}" data-q="${x.questionId}" data-text="${esc(t.answerText)}" data-result="${t.rightCount<t.count?'RIGHT':'WRONG'}">${t.rightCount<t.count?'모두 인정':'인정 취소'}</button>`).join(' · ')||'-'}`}</td></tr>`).join('')}</table>`).join('')||'<p class="muted">반이 없습니다.</p>';
   },
   async deleteLesson(el){if(!confirm(el.dataset.id+'차시와 그 문제를 지웁니다.'))return;await call('teacher','DELETE',`/api/v1/teacher/courses/${courseId()}/lessons/${el.dataset.id}`);if(S.lessonNumber===+el.dataset.id)S.lessonNumber=null;await actions.loadLessons()},
   async renameLesson(el){const title=prompt('새 차시 이름');if(title){await call('teacher','PATCH',`/api/v1/teacher/courses/${courseId()}/lessons/${el.dataset.id}`,{title});await actions.loadLessons()}},
