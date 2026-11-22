@@ -9,6 +9,8 @@ import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
 import jakarta.validation.constraints.NotEmpty
 import jakarta.validation.constraints.NotNull
+import jakarta.validation.constraints.Positive
+import jakarta.validation.constraints.Size
 import java.util.UUID
 
 private const val MIN_TIME_LIMIT_SEC = 1L
@@ -74,4 +76,28 @@ class QuestionRequest private constructor() {
             options = requireNotNull(options).map(Option::toCommand),
         )
     }
+
+    @Schema(name = "QuestionRequestCopy")
+    data class Copy(
+        @field:Schema(description = "복사해 넣을 수업. 같은 수업이어도 된다")
+        @field:NotNull
+        val targetCourseId: Long?,
+        @field:Schema(description = "복사해 넣을 차시. 비우면 대상 수업에 원본 제목으로 새 차시를 만든다")
+        @field:Positive
+        val targetLessonNumber: Int? = null,
+        @field:Schema(description = "복사할 문제. 비우면 차시의 모든 문제")
+        @field:Size(max = MAX_COPY_COUNT)
+        val questionIds: List<Long>? = null,
+    ) {
+        fun toCommand(userId: UUID, courseId: Long, lessonNumber: Int) = QuestionCommand.Copy(
+            userId = userId,
+            courseId = courseId,
+            lessonNumber = lessonNumber,
+            targetCourseId = requireNotNull(targetCourseId),
+            targetLessonNumber = targetLessonNumber,
+            questionIds = questionIds.orEmpty(),
+        )
+    }
 }
+
+private const val MAX_COPY_COUNT = 100
