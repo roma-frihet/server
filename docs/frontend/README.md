@@ -271,7 +271,8 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 | 반 학생 목록·점수 | `GET /api/v1/teacher/classrooms/{classroomId}/students?keyword=` |
 | 학생 상세 | `GET /api/v1/teacher/classrooms/{classroomId}/students/{membershipId}` |
 | 학생의 차시 풀이 | `GET /api/v1/teacher/classrooms/{classroomId}/students/{membershipId}/lessons/{lessonNumber}/answers` |
-| 점수 내보내기 | `GET /api/v1/teacher/courses/{courseId}/scores` (페이지) |
+| 점수 조회 | `GET /api/v1/teacher/courses/{courseId}/scores` (페이지) |
+| 성적 내보내기 (CSV) | `GET /api/v1/teacher/courses/{courseId}/scores/export?sheet=&classroomId=&lessonNumber=` |
 | 결과 덮어쓰기 | `PUT /api/v1/teacher/attempt-answers/{attemptAnswerId}/result` |
 | 주관식 같은 답 한 번에 인정 | `POST /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/questions/{questionId}/answer-overrides` |
 | 비밀번호 초기화 | `POST /api/v1/teacher/classrooms/{classroomId}/students/{membershipId}/password-reset` |
@@ -281,6 +282,8 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 **학생의 차시 풀이** — 학생 상세의 차시를 골라 부릅니다. 문제 순서대로 **모든 문제**가 오고, 학생이 고른 보기(`selectedOptionId`)와 쓴 답(`answerText`), 정답(객관식 `options[].isCorrect`, 주관식 `acceptedAnswers`), 결과가 들어 있습니다. 결과에는 `RIGHT`/`WRONG`/`NONE` 말고도 `IN_PROGRESS`(푸는 중), `NOT_STARTED`(시작 안 함)가 있습니다. 화면 번호는 `number`(학생이 본 번호, 1부터)를 씁니다. 이미지는 `imageUrl`(10분 유효)입니다. 결과를 고칠 때는 `attemptAnswerId`로 결과 덮어쓰기를 부릅니다.
 
 **주관식 같은 답 한 번에 인정** — 문제별 결과의 `answerTexts[].answerText`를 그대로 `{ "answerText": ..., "result": "RIGHT" }`로 보냅니다. 그 반·차시·문제에서 같은 답(공백·대소문자 무시)을 쓴 학생의 결과가 한 번에 바뀌고 `changedCount`가 옵니다. 취소는 `"result": "WRONG"`입니다. `rightCount == count`면 이미 모두 인정된 답입니다. 호출한 뒤에 같은 답을 낸 학생은 다시 인정해야 합니다(인정 답안 자체를 바꾸지는 않습니다).
+
+**성적 내보내기** — JSON이 아니라 **CSV 파일**(UTF-8 BOM, 엑셀에서 바로 열림)이 옵니다. 파일 이름은 `Content-Disposition`의 `filename*`에 있습니다. `sheet`은 `STUDENT_SCORES`(학생 × 차시 점수), `QUESTION_RATES`(문제별 정답률, 소수 첫째 자리), `ANSWER_SHEET`(학생 × 문제 O/X)이고, 뒤의 둘은 `lessonNumber`가 필요합니다. `classroomId`를 비우면 모든 반입니다.
 
 **비밀번호 초기화** — 임시 비밀번호가 **응답에 한 번만** 내려옵니다. 다시 조회할 수 없으니 교사가 받아 적을 수 있게 화면에 크게 보여 주세요. 초기화하면 그 학생은 로그아웃됩니다.
 

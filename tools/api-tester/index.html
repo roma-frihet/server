@@ -131,7 +131,7 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
   <div class="card"><h2>학급 관리 반 목록</h2><div class="row"><button class="primary" data-act="classroomSummaries">내 모든 반 불러오기</button></div><div id="classroomSummaries"></div></div>
   <div class="card"><h2>대시보드</h2><div class="row"><button class="primary" data-act="dashboard">선택한 수업 불러오기</button></div><div id="dashboard"></div></div>
   <div class="card"><h2>학생 관리</h2><div class="row"><label>이름 검색<input id="studentKeyword"></label><button class="primary" data-act="students">선택한 반 불러오기</button></div><div id="students"></div></div>
-  <div class="card"><h2>학생 점수 조회</h2><div class="row"><label><span>반</span><select id="scoreClassroom"><option value="">전체 반</option><option value="picked">선택한 반</option></select></label><label>차시 (비우면 전체)<input id="scoreLesson" type="number" min="1" style="width:90px"></label><label>페이지 크기<input id="scoreSize" type="number" value="20" min="1" max="100" style="width:80px"></label><button class="primary" data-act="scores" data-page="0">조회</button></div><div id="scores"></div></div>
+  <div class="card"><h2>학생 점수 조회</h2><div class="row"><label><span>반</span><select id="scoreClassroom"><option value="">전체 반</option><option value="picked">선택한 반</option></select></label><label>차시 (비우면 전체)<input id="scoreLesson" type="number" min="1" style="width:90px"></label><label>페이지 크기<input id="scoreSize" type="number" value="20" min="1" max="100" style="width:80px"></label><button class="primary" data-act="scores" data-page="0">조회</button><label>내보내기<select id="exportSheet"><option value="STUDENT_SCORES">학생별 차시 점수</option><option value="QUESTION_RATES">문제별 정답률 (차시 필요)</option><option value="ANSWER_SHEET">학생별 정오표 (차시 필요)</option></select></label><button data-act="exportScores">CSV 내려받기</button></div><div id="scores"></div></div>
   <div class="card"><h2>마이페이지</h2><div class="row"><button class="primary" data-act="mypage">불러오기</button></div><div id="mypage"></div></div>
 </section>
 </main>
@@ -420,6 +420,18 @@ const actions={
     if($('scoreLesson').value)p.set('lessonNumber',$('scoreLesson').value);
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/scores?${p}`),i=d.pageInfo;
     $('scores').innerHTML=`<table><tr><th>반</th><th>학번</th><th>이름</th><th>차시</th><th>점수</th></tr>${d.content.map(s=>`<tr><td>${s.classNo}반</td><td>${esc(s.studentNumber)}</td><td>${esc(s.studentName)}</td><td>${s.lessonNumber}</td><td>${s.correctCount==null?badge('NOT_RESPONDED'):`${s.correctCount} / ${s.questionCount}`}</td></tr>`).join('')}</table><div class="row" style="margin-top:8px"><button data-act="scores" data-page="${i.page-1}" ${i.page?'':'disabled'}>이전</button><span class="muted">${i.page+1} / ${Math.max(i.totalPages,1)}쪽, 총 ${i.totalElements}건</span><button data-act="scores" data-page="${i.page+1}" ${i.hasNext?'':'disabled'}>다음</button></div>`;
+  },
+  // JSON이 아니라 파일이라 call 대신 fetch로 받는다. 파일 이름은 Content-Disposition의 filename*에 있다
+  async exportScores(){
+    const p=new URLSearchParams({sheet:$('exportSheet').value});
+    if($('scoreClassroom').value==='picked')p.set('classroomId',classroomId());
+    if($('scoreLesson').value)p.set('lessonNumber',$('scoreLesson').value);
+    const path=`/api/v1/teacher/courses/${courseId()}/scores/export?${p}`;
+    const res=await fetch(path,{headers:{Authorization:'Bearer '+S.teacher}});
+    log('GET',path,'teacher',res.status,res.ok?'(CSV 파일)':await res.text());
+    if(!res.ok)return;
+    const name=decodeURIComponent((res.headers.get('Content-Disposition')||'').match(/filename\*=UTF-8''([^;]+)/)?.[1]||'scores.csv');
+    const a=document.createElement('a');a.href=URL.createObjectURL(await res.blob());a.download=name;a.click();URL.revokeObjectURL(a.href);
   },
   async mypage(){
     const d=await call('teacher','GET','/api/v1/teacher/mypage');
