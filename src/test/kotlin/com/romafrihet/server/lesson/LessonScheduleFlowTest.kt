@@ -4,6 +4,8 @@ import com.romafrihet.server.TeacherFlowFixture
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.lesson.command.LessonCommand
 import com.romafrihet.server.lesson.command.LessonOpeningCommand
+import com.romafrihet.server.report.QuestionStatsService
+import com.romafrihet.server.report.command.ReportCommand
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
@@ -23,6 +25,9 @@ class LessonScheduleFlowTest : TeacherFlowFixture() {
 
     @Autowired
     private lateinit var jdbcTemplate: JdbcTemplate
+
+    @Autowired
+    private lateinit var questionStatsService: QuestionStatsService
 
     @Test
     fun `열 시각이 지나면 차시 목록을 읽을 때 열리고 마감 시각이 지나면 마감된다`() {
@@ -45,6 +50,21 @@ class LessonScheduleFlowTest : TeacherFlowFixture() {
         assertThat(finished.status).isEqualTo(LessonStatus.FINISHED)
         assertThat(finished.scheduledFinishAt).isNull()
         assertThat(lessonScheduleRepository.findByClassroomIdAndLessonNumber(classroomId, 1)).isNull()
+    }
+
+    @Test
+    fun `문제별 결과를 처음 읽을 때도 예약이 반영된다`() {
+        val classroomId = createClassroom()
+        createQuestion(lessonNumber = 1)
+        schedule(classroomId, 1, openAt = inHours(1), finishAt = null)
+        moveToPast(classroomId, "open_at")
+
+        val stats =
+            questionStatsService.findQuestionStats(
+                ReportCommand.QuestionStats(teacherId, courseId, 1, listOf(classroomId)),
+            )
+
+        assertThat(stats.single().status).isEqualTo(LessonStatus.OPEN)
     }
 
     @Test

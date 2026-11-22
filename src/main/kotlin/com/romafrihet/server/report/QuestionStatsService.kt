@@ -10,6 +10,7 @@ import com.romafrihet.server.lesson.AttemptFinalizer
 import com.romafrihet.server.lesson.AttemptRepository
 import com.romafrihet.server.lesson.LessonOpeningRepository
 import com.romafrihet.server.lesson.LessonRepository
+import com.romafrihet.server.lesson.LessonScheduleApplier
 import com.romafrihet.server.lesson.LessonStatus
 import com.romafrihet.server.lesson.Question
 import com.romafrihet.server.lesson.QuestionRepository
@@ -39,11 +40,12 @@ class QuestionStatsService(
     private val attemptFinalizer: AttemptFinalizer,
     private val lessonOpeningRepository: LessonOpeningRepository,
     private val classroomMembershipRepository: ClassroomMembershipRepository,
+    private val lessonScheduleApplier: LessonScheduleApplier,
 ) {
     /**
      * 수업 중 화면이 몇 초마다 부르므로 이 차시의 기록만 읽는다. 전 차시 격자(ClassroomRecordsReader)는 읽지 않는다.
      * 반을 비우면 수업의 모든 반인데, 반 번호가 1~20이라 수업당 반은 20개를 넘지 않는다.
-     * 읽기 전에 시간이 지난 응답을 확정하므로 readOnly가 아니다.
+     * 읽기 전에 시각이 지난 예약을 적용하고 시간이 지난 응답을 확정하므로 readOnly가 아니다.
      */
     @Transactional
     fun findQuestionStats(command: ReportCommand.QuestionStats): List<ClassroomQuestionStatsDto> {
@@ -57,6 +59,7 @@ class QuestionStatsService(
             }
         if (classrooms.isEmpty()) return emptyList()
         val classroomIds = classrooms.map { requireNotNull(it.id) }
+        lessonScheduleApplier.applyDue(classroomIds)
         val questions = questionRepository.findAllWithOptions(command.courseId, command.lessonNumber)
         attemptFinalizer.finalizeExpired(
             attemptRepository.findAllByClassroomIdInAndLessonNumber(classroomIds, command.lessonNumber),
