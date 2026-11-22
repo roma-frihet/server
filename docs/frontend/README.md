@@ -255,11 +255,14 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 |---|---|
 | 반 학생 목록·점수 | `GET /api/v1/teacher/classrooms/{classroomId}/students?keyword=` |
 | 학생 상세 | `GET /api/v1/teacher/classrooms/{classroomId}/students/{membershipId}` |
-| 점수 내보내기 | `GET /api/v1/teacher/courses/{courseId}/scores` (페이지) |
+| 점수 조회 | `GET /api/v1/teacher/courses/{courseId}/scores` (페이지) |
+| 성적 내보내기 (CSV) | `GET /api/v1/teacher/courses/{courseId}/scores/export?sheet=&classroomId=&lessonNumber=` |
 | 결과 덮어쓰기 | `PUT /api/v1/teacher/attempt-answers/{attemptAnswerId}/result` |
 | 비밀번호 초기화 | `POST /api/v1/teacher/classrooms/{classroomId}/students/{membershipId}/password-reset` |
 
 **결과 덮어쓰기** — 접속이 끊기는 등 사정이 있을 때 교사가 학생 이야기를 듣고 결과를 바꿉니다. 학생 상세에 문제별 `attemptAnswerId`가 들어 있고, 그걸로 지정합니다. 확정된 문제만 바꿀 수 있고 **학생이 시작조차 하지 않은 문제는 목록에 없습니다** — 교사도 손댈 수 없습니다. 원래 결과는 이력으로 남고, 바뀐 항목은 `isOverridden`으로 표시됩니다.
+
+**성적 내보내기** — JSON이 아니라 **CSV 파일**(UTF-8 BOM, 엑셀에서 바로 열림)이 옵니다. 파일 이름은 `Content-Disposition`의 `filename*`에 있습니다. `sheet`은 `STUDENT_SCORES`(학생 × 차시 점수), `QUESTION_RATES`(문제별 정답률, 소수 첫째 자리), `ANSWER_SHEET`(학생 × 문제 O/X)이고, 뒤의 둘은 `lessonNumber`가 필요합니다. `classroomId`를 비우면 모든 반입니다.
 
 **비밀번호 초기화** — 임시 비밀번호가 **응답에 한 번만** 내려옵니다. 다시 조회할 수 없으니 교사가 받아 적을 수 있게 화면에 크게 보여 주세요. 초기화하면 그 학생은 로그아웃됩니다.
 

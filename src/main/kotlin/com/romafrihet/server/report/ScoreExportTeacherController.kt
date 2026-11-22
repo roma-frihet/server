@@ -4,6 +4,9 @@ import com.romafrihet.server.common.web.ApiPaths
 import com.romafrihet.server.common.web.BaseController
 import com.romafrihet.server.report.rqrs.ReportRequest
 import io.swagger.v3.oas.annotations.Operation
+import io.swagger.v3.oas.annotations.media.Content
+import io.swagger.v3.oas.annotations.media.Schema
+import io.swagger.v3.oas.annotations.responses.ApiResponse
 import io.swagger.v3.oas.annotations.tags.Tag
 import jakarta.validation.Valid
 import org.springdoc.core.annotations.ParameterObject
@@ -27,6 +30,11 @@ class ScoreExportTeacherController(private val scoreExportService: ScoreExportSe
         description =
         "엑셀에서 바로 열리는 CSV(UTF-8 BOM)를 내려받습니다. STUDENT_SCORES는 학생 × 차시 점수, " +
             "QUESTION_RATES는 차시의 문제별 정답률, ANSWER_SHEET는 차시의 학생 × 문제 정오표입니다.",
+    )
+    @ApiResponse(
+        responseCode = "200",
+        description = "CSV 파일. 파일 이름은 Content-Disposition의 filename*에 있다",
+        content = [Content(mediaType = CSV, schema = Schema(type = "string", format = "binary"))],
     )
     @GetMapping("/courses/{courseId}/scores/export", produces = [CSV])
     fun export(

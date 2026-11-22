@@ -57,8 +57,44 @@ class ScoreExportFlowTest : TeacherFlowFixture() {
 
         assertThat(rows(file.content)).containsExactly(
             "반,문제,유형,내용,답한 학생,정답,정답률(%)",
-            "1반,1,객관식,광합성이 일어나는 곳은?,1,1,100",
+            "1반,1,객관식,광합성이 일어나는 곳은?,1,1,100.0",
         )
+    }
+
+    @Test
+    fun `반을 비우면 모든 반의 학생을 반 순서대로 내리고 어느 반이든 연 차시를 열로 둔다`() {
+        joinedClassroom(classNo = 1)
+        val second = createClassroom(classNo = 2)
+        request(second, UUID.randomUUID(), "김철수", "20201")
+        createQuestion(lessonNumber = 1)
+        val secondLesson = createQuestion(lessonNumber = 2)
+        openLesson(second, 2)
+        submit(second, membershipUser(second), secondLesson, correct = true)
+
+        val file = export(ScoreExportSheet.STUDENT_SCORES)
+
+        assertThat(file.fileName).isEqualTo("2학년_전체반_과학_학생별_차시점수.csv")
+        assertThat(rows(file.content)).containsExactly(
+            "반,학번,이름,2차시(1문제)",
+            "1반,20101,홍길동,",
+            "2반,20201,김철수,1",
+        )
+    }
+
+    @Test
+    fun `정답률은 소수 첫째 자리까지 쓴다`() {
+        val classroomId = createClassroom()
+        val questionId = createQuestion(lessonNumber = 1)
+        openLesson(classroomId, 1)
+        listOf(true, true, false).forEachIndexed { i, correct ->
+            val userId = UUID.randomUUID()
+            request(classroomId, userId, "학생$i", "2010$i")
+            submit(classroomId, userId, questionId, correct)
+        }
+
+        val file = export(ScoreExportSheet.QUESTION_RATES, lessonNumber = 1)
+
+        assertThat(rows(file.content).last()).endsWith(",3,2,66.7")
     }
 
     @Test
@@ -81,6 +117,9 @@ class ScoreExportFlowTest : TeacherFlowFixture() {
 
     private fun export(sheet: ScoreExportSheet, classroomId: Long? = null, lessonNumber: Int? = null) =
         scoreExportService.export(ReportCommand.ScoreExport(teacherId, courseId, classroomId, lessonNumber, sheet))
+
+    private fun membershipUser(classroomId: Long): UUID =
+        membershipRepository.findAllByClassroomIdIn(listOf(classroomId)).single().userId
 
     private fun rows(content: ByteArray): List<String> =
         String(content.copyOfRange(3, content.size), Charsets.UTF_8).split("\r\n").filter { it.isNotEmpty() }
