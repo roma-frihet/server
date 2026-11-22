@@ -49,6 +49,8 @@ class LessonOpeningService(
         val classroom = classroomRepository.getOwned(command.classroomId, command.userId)
         val classroomId = requireNotNull(classroom.id)
         val courseId = requireNotNull(classroom.course.id)
+        // 예약 적용과 동시에 열면 둘 다 "열린 차시 없음"을 보고 부분 유일 인덱스에서 500이 난다. 반을 잠가 줄을 세운다.
+        classroomRepository.findAllForUpdate(listOf(classroomId))
         lessonScheduleApplier.applyDue(listOf(classroomId))
         if (!lessonRepository.existsByCourseIdAndLessonNumber(courseId, command.lessonNumber)) {
             throw BusinessException(ErrorCode.NOT_FOUND)

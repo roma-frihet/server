@@ -248,6 +248,15 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 | 차시 열기 | `POST /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/open` |
 | 차시 닫기 | `POST .../close` |
 | 차시 마감 | `POST .../finish` |
+| 열기 예약 · 자동 마감 | `PUT /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/schedule` |
+| 예약 취소 | `DELETE .../schedule` |
+
+**열기 예약과 자동 마감** — `{ "openAt": "2026-11-23T09:10:00+09:00", "finishAt": "2026-11-23T09:25:00+09:00" }`처럼 **시간대를 포함해** 보냅니다. 서버 시계는 UTC라 시간대 없이 보내면 9시간 어긋납니다. 이미 열린 차시는 `finishAt`만 보냅니다(자동 마감). 차시 목록의 반별 상태에 `scheduledOpenAt`, `scheduledFinishAt`이 함께 옵니다.
+
+- 서버는 스케줄러 없이, 시각이 지난 뒤 그 반의 상태를 **처음 읽을 때** 반영합니다. 학생이 차시 목록을 열거나 교사가 화면을 새로 고치면 열립니다.
+- 다른 차시가 열려 있으면 예약 열기는 미뤄지고, 그 차시가 닫히거나 마감되면 열립니다.
+- **열기 전에 마감 시각까지 지나 버리면 열지 않고 예약을 지웁니다.** 열자마자 마감되면 학생이 풀 수 없고 되돌릴 수 없기 때문입니다. 교사는 직접 열 수 있습니다.
+- 교사가 직접 열면 열기 예약이, 직접 마감하면 예약 전체가 지워집니다.
 
 ### 5-6. 학생 관리
 

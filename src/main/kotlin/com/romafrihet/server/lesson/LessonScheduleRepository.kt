@@ -21,7 +21,7 @@ interface LessonScheduleRepository : JpaRepository<LessonSchedule, Long> {
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @QueryHints(QueryHint(name = "jakarta.persistence.lock.timeout", value = "-2"))
-    @EntityGraph(attributePaths = ["classroom"])
+    @EntityGraph(attributePaths = ["classroom", "classroom.course"])
     @Query(
         """
         select s from LessonSchedule s

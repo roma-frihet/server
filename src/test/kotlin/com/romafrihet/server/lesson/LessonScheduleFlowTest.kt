@@ -60,7 +60,7 @@ class LessonScheduleFlowTest : TeacherFlowFixture() {
     }
 
     @Test
-    fun `두 시각이 모두 지났으면 예약한 시각으로 열고 마감한다`() {
+    fun `열기 전에 마감 시각까지 지났으면 열지 않고 예약을 지운다`() {
         val classroomId = createClassroom()
         createQuestion(lessonNumber = 1)
         schedule(classroomId, 1, openAt = inHours(1), finishAt = inHours(2))
@@ -71,10 +71,69 @@ class LessonScheduleFlowTest : TeacherFlowFixture() {
             classroomId,
         )
 
+        assertThat(statusOf(classroomId, 1).status).isEqualTo(LessonStatus.PLANNED)
+        assertThat(lessonOpeningRepository.findByClassroomIdAndLessonNumber(classroomId, 1)).isNull()
+        assertThat(lessonScheduleRepository.findByClassroomIdAndLessonNumber(classroomId, 1)).isNull()
+        // 열지 않은 차시라 교사가 직접 열 수 있다.
+        openLesson(classroomId, 1)
+        assertThat(statusOf(classroomId, 1).status).isEqualTo(LessonStatus.OPEN)
+    }
+
+    @Test
+    fun `다른 차시 때문에 미룬 사이 마감 시각이 지나면 열자마자 마감하지 않는다`() {
+        val classroomId = createClassroom()
+        createQuestion(lessonNumber = 1)
+        createQuestion(lessonNumber = 2)
+        openLesson(classroomId, 1)
+        schedule(classroomId, 2, openAt = inHours(1), finishAt = inHours(2))
+        moveToPast(classroomId, "open_at")
+        assertThat(statusOf(classroomId, 2).status).isEqualTo(LessonStatus.PLANNED)
+        jdbcTemplate.update(
+            "update lesson_schedules set finish_at = ? where classroom_id = ?",
+            LocalDateTime.now().minusSeconds(30),
+            classroomId,
+        )
+
+        openingService.finish(LessonOpeningCommand.Change(teacherId, classroomId, 1))
+
+        assertThat(statusOf(classroomId, 2).status).isEqualTo(LessonStatus.PLANNED)
+        assertThat(lessonScheduleRepository.findByClassroomIdAndLessonNumber(classroomId, 2)).isNull()
+    }
+
+    @Test
+    fun `같은 시각의 마감과 다음 차시 열기는 마감을 먼저 적용해 한 번에 반영된다`() {
+        val classroomId = createClassroom()
+        createQuestion(lessonNumber = 1)
+        createQuestion(lessonNumber = 2)
+        openLesson(classroomId, 1)
+        schedule(classroomId, 1, openAt = null, finishAt = inHours(1))
+        schedule(classroomId, 2, openAt = inHours(1), finishAt = null)
+        val same = LocalDateTime.now().minusMinutes(1)
+        jdbcTemplate.update(
+            "update lesson_schedules set finish_at = ? where classroom_id = ? and lesson_number = 1",
+            same,
+            classroomId,
+        )
+        jdbcTemplate.update(
+            "update lesson_schedules set open_at = ? where classroom_id = ? and lesson_number = 2",
+            same,
+            classroomId,
+        )
+
         assertThat(statusOf(classroomId, 1).status).isEqualTo(LessonStatus.FINISHED)
-        val opening = requireNotNull(lessonOpeningRepository.findByClassroomIdAndLessonNumber(classroomId, 1))
-        assertThat(opening.finishedAt).isAfter(opening.openedAt)
-        assertThat(opening.finishedAt).isBefore(LocalDateTime.now().minusMinutes(5))
+        assertThat(statusOf(classroomId, 2).status).isEqualTo(LessonStatus.OPEN)
+    }
+
+    @Test
+    fun `열 시각이 지난 뒤 문제를 고치려 하면 예약부터 적용해 열린 차시로 막는다`() {
+        val classroomId = createClassroom()
+        createQuestion(lessonNumber = 1)
+        schedule(classroomId, 1, openAt = inHours(1), finishAt = null)
+        moveToPast(classroomId, "open_at")
+
+        assertErrorCode(ErrorCode.LESSON_LOCKED_BY_OPENING) { createQuestion(lessonNumber = 1) }
+        // 거절과 함께 적용도 롤백되지만, 예약이 남아 있어 다음 조회에서 다시 적용된다.
+        assertThat(statusOf(classroomId, 1).status).isEqualTo(LessonStatus.OPEN)
     }
 
     @Test

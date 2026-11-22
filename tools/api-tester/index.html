@@ -181,6 +181,13 @@ function answerBody(){
     :{optionId:+(document.querySelector('input[name=cur]:checked')?.value||0)||null};
 }
 const badge=s=>`<span class="badge ${esc(s)}">${esc({PLANNED:'예정',OPEN:'열림',CLOSED:'닫힘',FINISHED:'마감',NORMAL:'정상',SCORE_DROPPED:'점수 하락',NOT_RESPONDED:'미응답'}[s]||s)}</span>`;
+const hm=iso=>new Date(iso).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+function todayAt(value){
+  if(!value)return null;
+  const[h,m]=value.split(':').map(Number),d=new Date();d.setHours(h,m||0,0,0);
+  const p=n=>String(Math.abs(n)).padStart(2,'0'),o=-d.getTimezoneOffset();
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(h)}:${p(m||0)}:00${o>=0?'+':'-'}${p(Math.trunc(o/60))}:${p(o%60)}`;
+}
 function exp(token){try{return new Date(JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp*1000)}catch(e){return null}}
 function refresh(){
   for(const r of ['teacher','student']){
@@ -243,13 +250,21 @@ const actions={
   async createLesson(){const d=await call('teacher','POST',`/api/v1/teacher/courses/${courseId()}/lessons`,{title:$('lessonTitle').value});S.lessonNumber=d.lessonNumber;await actions.loadLessons()},
   async loadLessons(){
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/lessons`);
-    $('lessons').innerHTML=`<table><tr><th></th><th>차시</th><th>문제</th><th>반별 상태</th><th>선택한 반 동작</th></tr>${d.map(l=>`<tr><td><input type="radio" name="lesson" data-act="pickLesson" data-id="${l.lessonNumber}" ${l.lessonNumber===S.lessonNumber?'checked':''}></td><td>${l.lessonNumber}. ${esc(l.title)} <button data-act="renameLesson" data-id="${l.lessonNumber}">이름 수정</button> <button class="danger" data-act="deleteLesson" data-id="${l.lessonNumber}">삭제</button></td><td>${l.questionCount}</td><td>${l.classrooms.map(c=>c.classNo+'반 '+badge(c.status)).join(' ')||'-'}</td><td>${['open:열기','close:닫기','finish:마감'].map(x=>{const[a,t]=x.split(':');return `<button data-act="lessonState" data-state="${a}" data-id="${l.lessonNumber}" ${a==='finish'?'class="danger"':''}>${t}</button>`}).join(' ')}</td></tr>`).join('')}</table>`;
+    $('lessons').innerHTML=`<table><tr><th></th><th>차시</th><th>문제</th><th>반별 상태</th><th>선택한 반 동작</th></tr>${d.map(l=>`<tr><td><input type="radio" name="lesson" data-act="pickLesson" data-id="${l.lessonNumber}" ${l.lessonNumber===S.lessonNumber?'checked':''}></td><td>${l.lessonNumber}. ${esc(l.title)} <button data-act="renameLesson" data-id="${l.lessonNumber}">이름 수정</button> <button class="danger" data-act="deleteLesson" data-id="${l.lessonNumber}">삭제</button></td><td>${l.questionCount}</td><td>${l.classrooms.map(c=>c.classNo+'반 '+badge(c.status)+(c.scheduledOpenAt?` <span class="muted">${hm(c.scheduledOpenAt)} 열기</span>`:'')+(c.scheduledFinishAt?` <span class="muted">${hm(c.scheduledFinishAt)} 마감</span>`:'')).join(' ')||'-'}</td><td>${['open:열기','close:닫기','finish:마감'].map(x=>{const[a,t]=x.split(':');return `<button data-act="lessonState" data-state="${a}" data-id="${l.lessonNumber}" ${a==='finish'?'class="danger"':''}>${t}</button>`}).join(' ')} <button data-act="scheduleLesson" data-id="${l.lessonNumber}">예약</button> <button data-act="cancelSchedule" data-id="${l.lessonNumber}">예약 취소</button></td></tr>`).join('')}</table>`;
     refresh();if(S.lessonNumber)await actions.loadQuestions();
   },
   async pickLesson(el){S.lessonNumber=+el.dataset.id;refresh();await actions.loadQuestions()},
   async deleteLesson(el){if(!confirm(el.dataset.id+'차시와 그 문제를 지웁니다.'))return;await call('teacher','DELETE',`/api/v1/teacher/courses/${courseId()}/lessons/${el.dataset.id}`);if(S.lessonNumber===+el.dataset.id)S.lessonNumber=null;await actions.loadLessons()},
   async renameLesson(el){const title=prompt('새 차시 이름');if(title){await call('teacher','PATCH',`/api/v1/teacher/courses/${courseId()}/lessons/${el.dataset.id}`,{title});await actions.loadLessons()}},
   async lessonState(el){await call('teacher','POST',`/api/v1/teacher/classrooms/${classroomId()}/lessons/${el.dataset.id}/${el.dataset.state}`);await actions.loadLessons()},
+  // 오늘 날짜에 시:분을 붙이고 브라우저 시간대를 넣어 보낸다. 서버 시계가 UTC라 시간대가 없으면 9시간 어긋난다.
+  async scheduleLesson(el){
+    const open=prompt('열 시각 (HH:MM, 오늘). 이미 열린 차시면 비워 두세요.','');if(open===null)return;
+    const finish=prompt('자동 마감 시각 (HH:MM, 오늘). 없으면 비워 두세요.','');if(finish===null)return;
+    await call('teacher','PUT',`/api/v1/teacher/classrooms/${classroomId()}/lessons/${el.dataset.id}/schedule`,{openAt:todayAt(open),finishAt:todayAt(finish)});
+    await actions.loadLessons();
+  },
+  async cancelSchedule(el){await call('teacher','DELETE',`/api/v1/teacher/classrooms/${classroomId()}/lessons/${el.dataset.id}/schedule`);await actions.loadLessons()},
   addOption(){S.options.push({text:'',correct:false});renderOptions()},
   async createQuestion(){
     const n=need(S.lessonNumber,'차시를 먼저 선택하세요.');const type=$('qType').value;let options;
