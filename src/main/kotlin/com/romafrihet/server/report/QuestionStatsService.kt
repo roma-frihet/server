@@ -1,10 +1,14 @@
 package com.romafrihet.server.report
 
 import com.romafrihet.server.classroom.Classroom
+import com.romafrihet.server.classroom.ClassroomMembershipRepository
 import com.romafrihet.server.classroom.ClassroomRepository
 import com.romafrihet.server.course.CourseRepository
 import com.romafrihet.server.course.getOwned
 import com.romafrihet.server.lesson.AttemptAnswerRepository
+import com.romafrihet.server.lesson.AttemptFinalizer
+import com.romafrihet.server.lesson.AttemptRepository
+import com.romafrihet.server.lesson.LessonOpeningRepository
 import com.romafrihet.server.lesson.LessonRepository
 import com.romafrihet.server.lesson.LessonStatus
 import com.romafrihet.server.lesson.Question
@@ -31,9 +35,16 @@ class QuestionStatsService(
     private val lessonRepository: LessonRepository,
     private val questionRepository: QuestionRepository,
     private val attemptAnswerRepository: AttemptAnswerRepository,
-    private val classroomRecordsReader: ClassroomRecordsReader,
+    private val attemptRepository: AttemptRepository,
+    private val attemptFinalizer: AttemptFinalizer,
+    private val lessonOpeningRepository: LessonOpeningRepository,
+    private val classroomMembershipRepository: ClassroomMembershipRepository,
 ) {
-    /** 읽기 전에 시간이 지난 응답을 확정하므로 readOnly가 아니다. */
+    /**
+     * 수업 중 화면이 몇 초마다 부르므로 이 차시의 기록만 읽는다. 전 차시 격자(ClassroomRecordsReader)는 읽지 않는다.
+     * 반을 비우면 수업의 모든 반인데, 반 번호가 1~20이라 수업당 반은 20개를 넘지 않는다.
+     * 읽기 전에 시간이 지난 응답을 확정하므로 readOnly가 아니다.
+     */
     @Transactional
     fun findQuestionStats(command: ReportCommand.QuestionStats): List<ClassroomQuestionStatsDto> {
         courseRepository.getOwned(command.courseId, command.userId)
@@ -46,31 +57,53 @@ class QuestionStatsService(
             }
         if (classrooms.isEmpty()) return emptyList()
         val classroomIds = classrooms.map { requireNotNull(it.id) }
-        val records = classroomRecordsReader.read(command.courseId, classroomIds)
         val questions = questionRepository.findAllWithOptions(command.courseId, command.lessonNumber)
+        attemptFinalizer.finalizeExpired(
+            attemptRepository.findAllByClassroomIdInAndLessonNumber(classroomIds, command.lessonNumber),
+            mapOf(command.lessonNumber to questions.size),
+        )
+        val lesson =
+            LessonRecords(
+                statuses =
+                lessonOpeningRepository
+                    .findAllByClassroomIdInAndLessonNumber(classroomIds, command.lessonNumber)
+                    .associate { requireNotNull(it.classroom.id) to it.status },
+                studentCounts =
+                classroomMembershipRepository
+                    .findStudentCounts(classroomIds)
+                    .associate { it.classroomId to it.studentCount.toInt() },
+                responseCounts =
+                attemptAnswerRepository
+                    .findResponseCounts(classroomIds, command.lessonNumber)
+                    .associate { it.classroomId to it.responseCount.toInt() },
+            )
         val counts =
             attemptAnswerRepository
                 .findAnswerCounts(classroomIds, command.lessonNumber)
                 .groupBy { it.classroomId to it.questionId }
-        return classrooms.map { toClassroomStats(it, command.lessonNumber, records, questions, counts) }
+        return classrooms.map { toClassroomStats(it, lesson, questions, counts) }
     }
+
+    /** 한 차시에 대해 반별로 필요한 값만 모았다. */
+    private class LessonRecords(
+        val statuses: Map<Long, LessonStatus>,
+        val studentCounts: Map<Long, Int>,
+        val responseCounts: Map<Long, Int>,
+    )
 
     private fun toClassroomStats(
         classroom: Classroom,
-        lessonNumber: Int,
-        records: ClassroomRecords,
+        lesson: LessonRecords,
         questions: List<Question>,
         counts: Map<Pair<Long, Long>, List<AnswerCountProjection>>,
     ): ClassroomQuestionStatsDto {
         val classroomId = requireNotNull(classroom.id)
-        val opening = records.openings[classroomId].orEmpty().firstOrNull { it.lessonNumber == lessonNumber }
-        val scores = records.scores[classroomId].orEmpty()
         return ClassroomQuestionStatsDto(
             classroomId = classroomId,
             classNo = classroom.classNo,
-            status = opening?.status ?: LessonStatus.PLANNED,
-            studentCount = records.students[classroomId].orEmpty().size,
-            responseCount = scores.count { (_, byLesson) -> (byLesson[lessonNumber]?.answeredCount ?: 0) > 0 },
+            status = lesson.statuses[classroomId] ?: LessonStatus.PLANNED,
+            studentCount = lesson.studentCounts[classroomId] ?: 0,
+            responseCount = lesson.responseCounts[classroomId] ?: 0,
             questions =
             questions.map { question ->
                 toQuestionStat(question, counts[classroomId to requireNotNull(question.id)].orEmpty())

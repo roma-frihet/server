@@ -1,6 +1,7 @@
 package com.romafrihet.server.lesson
 
 import com.romafrihet.server.lesson.projection.AnswerCountProjection
+import com.romafrihet.server.lesson.projection.ClassroomResponseCountProjection
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
@@ -70,6 +71,21 @@ interface AttemptAnswerRepository : JpaRepository<AttemptAnswer, Long> {
         """,
     )
     fun findFinalizedTextAnswers(classroomId: Long, lessonNumber: Int, questionId: Long): List<AttemptAnswer>
+
+    @Query(
+        """
+        select new com.romafrihet.server.lesson.projection.ClassroomResponseCountProjection(
+            t.classroom.id, count(distinct t.userId)
+        )
+        from AttemptAnswer a
+        join a.attempt t
+        where t.classroom.id in :classroomIds
+          and t.lessonNumber = :lessonNumber
+          and a.finalResult <> com.romafrihet.server.lesson.QuestionResult.NONE
+        group by t.classroom.id
+        """,
+    )
+    fun findResponseCounts(classroomIds: Collection<Long>, lessonNumber: Int): List<ClassroomResponseCountProjection>
 
     fun deleteAllByAttemptId(attemptId: Long)
 
