@@ -83,10 +83,9 @@ class Question private constructor(
     /** 주관식은 공백과 대소문자를 무시하고 인정 답안과 비교한다. */
     fun isCorrectAnswer(optionId: Long?, text: String?): Boolean = when (type) {
         QuestionType.MULTIPLE_CHOICE -> options.any { it.id == optionId && it.isCorrect }
-        QuestionType.SHORT_ANSWER -> text != null && options.any { it.content?.let(::normalize) == normalize(text) }
+        QuestionType.SHORT_ANSWER ->
+            text != null && options.any { it.content?.let(::normalizeAnswer) == normalizeAnswer(text) }
     }
-
-    private fun normalize(value: String): String = value.filterNot(Char::isWhitespace).lowercase()
 
     fun imageIds(): List<Long> = listOfNotNull(imageId) + options.mapNotNull { it.imageId }
 

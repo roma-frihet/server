@@ -35,6 +35,7 @@ class AttemptService(
     private val attemptRepository: AttemptRepository,
     private val attemptAnswerRepository: AttemptAnswerRepository,
     private val attemptFinalizer: AttemptFinalizer,
+    private val lessonScheduleApplier: LessonScheduleApplier,
     private val questionImageUrlResolver: QuestionImageUrlResolver,
     private val clock: Clock,
     transactionManager: PlatformTransactionManager,
@@ -144,6 +145,7 @@ class AttemptService(
         assertCheck(classroomMembershipRepository.existsByClassroomIdAndUserId(classroomId, userId)) {
             ErrorCode.FORBIDDEN
         }
+        lessonScheduleApplier.applyDue(listOf(classroomId))
         val opening =
             lessonOpeningRepository.findByClassroomIdAndLessonNumber(classroomId, lessonNumber)
                 ?: throw BusinessException(ErrorCode.NOT_FOUND)

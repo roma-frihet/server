@@ -8,6 +8,7 @@ import com.romafrihet.server.course.getOwned
 import com.romafrihet.server.lesson.AttemptCleaner
 import com.romafrihet.server.lesson.LessonOpeningRepository
 import com.romafrihet.server.lesson.LessonRepository
+import com.romafrihet.server.lesson.LessonScheduleRepository
 import com.romafrihet.server.lesson.QuestionCleaner
 import com.romafrihet.server.lesson.command.AttemptCommand
 import com.romafrihet.server.lesson.command.QuestionCommand
@@ -32,6 +33,7 @@ class TeacherService(
     private val classroomMembershipRepository: ClassroomMembershipRepository,
     private val lessonRepository: LessonRepository,
     private val lessonOpeningRepository: LessonOpeningRepository,
+    private val lessonScheduleRepository: LessonScheduleRepository,
     private val questionCleaner: QuestionCleaner,
     private val attemptCleaner: AttemptCleaner,
 ) {
@@ -111,6 +113,7 @@ class TeacherService(
         if (classroomIds.isEmpty()) return
         attemptCleaner.deleteAllInClassrooms(AttemptCommand.DeleteAllInClassrooms(classroomIds))
         classroomMembershipRepository.deleteAllByClassroomIdIn(classroomIds)
+        lessonScheduleRepository.deleteAllByClassroomIdIn(classroomIds)
         lessonOpeningRepository.deleteAllByClassroomIdIn(classroomIds)
     }
 }

@@ -4,15 +4,26 @@ import com.romafrihet.server.lesson.LessonStatus
 import com.romafrihet.server.lesson.dto.LessonClassroomStatusDto
 import com.romafrihet.server.lesson.dto.LessonDto
 import io.swagger.v3.oas.annotations.media.Schema
+import java.time.OffsetDateTime
 
 class LessonResponse private constructor() {
     @Schema(name = "LessonResponseClassroomStatus")
-    data class ClassroomStatus(val classroomId: Long, val classNo: Int, val status: LessonStatus) {
+    data class ClassroomStatus(
+        val classroomId: Long,
+        val classNo: Int,
+        val status: LessonStatus,
+        @field:Schema(description = "열기 예약 시각(시간대 포함). 없으면 null")
+        val scheduledOpenAt: OffsetDateTime?,
+        @field:Schema(description = "자동 마감 시각(시간대 포함). 없으면 null")
+        val scheduledFinishAt: OffsetDateTime?,
+    ) {
         companion object {
             fun of(dto: LessonClassroomStatusDto) = ClassroomStatus(
                 classroomId = dto.classroomId,
                 classNo = dto.classNo,
                 status = dto.status,
+                scheduledOpenAt = dto.scheduledOpenAt,
+                scheduledFinishAt = dto.scheduledFinishAt,
             )
         }
     }

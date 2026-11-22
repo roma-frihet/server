@@ -5,7 +5,9 @@ import com.romafrihet.server.common.web.PageInfo
 import com.romafrihet.server.lesson.LessonStatus
 import com.romafrihet.server.lesson.QuestionResult
 import com.romafrihet.server.report.StudentProgressStatus
+import com.romafrihet.server.report.dto.ClassroomOpenLessonDto
 import com.romafrihet.server.report.dto.ClassroomProgressDto
+import com.romafrihet.server.report.dto.ClassroomSummaryDto
 import com.romafrihet.server.report.dto.DashboardClassroomDto
 import com.romafrihet.server.report.dto.DashboardDto
 import com.romafrihet.server.report.dto.DashboardLessonDto
@@ -89,6 +91,57 @@ class ReportResponse private constructor() {
                 latestResponseCount = dto.latestResponseCount,
                 watchStudentCount = dto.watchStudentCount,
                 students = dto.students.map(Student::of),
+            )
+        }
+    }
+
+    @Schema(name = "ReportResponseClassroomOpenLesson")
+    data class ClassroomOpenLesson(
+        val lessonNumber: Int,
+        val title: String,
+        val questionCount: Int,
+        val responseCount: Int,
+    ) {
+        companion object {
+            fun of(dto: ClassroomOpenLessonDto) = ClassroomOpenLesson(
+                lessonNumber = dto.lessonNumber,
+                title = dto.title,
+                questionCount = dto.questionCount,
+                responseCount = dto.responseCount,
+            )
+        }
+    }
+
+    @Schema(name = "ReportResponseClassroomSummary")
+    data class ClassroomSummary(
+        val classroomId: Long,
+        val courseId: Long,
+        val grade: Int,
+        val subjectName: String,
+        val classNo: Int,
+        val studentCount: Int,
+        @field:Schema(description = "지금 열린 차시. 없으면 null")
+        val openLesson: ClassroomOpenLesson?,
+        val lastFinishedLessonNumber: Int?,
+        val latestLessonNumber: Int?,
+        val latestQuestionCount: Int,
+        val latestAverageCorrect: Double?,
+        val watchStudentCount: Int,
+    ) {
+        companion object {
+            fun of(dto: ClassroomSummaryDto) = ClassroomSummary(
+                classroomId = dto.classroomId,
+                courseId = dto.courseId,
+                grade = dto.grade,
+                subjectName = dto.subjectName,
+                classNo = dto.classNo,
+                studentCount = dto.studentCount,
+                openLesson = dto.openLesson?.let(ClassroomOpenLesson::of),
+                lastFinishedLessonNumber = dto.lastFinishedLessonNumber,
+                latestLessonNumber = dto.latestLessonNumber,
+                latestQuestionCount = dto.latestQuestionCount,
+                latestAverageCorrect = dto.latestAverageCorrect,
+                watchStudentCount = dto.watchStudentCount,
             )
         }
     }

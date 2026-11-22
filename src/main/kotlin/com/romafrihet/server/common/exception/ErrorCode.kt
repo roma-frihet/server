@@ -59,6 +59,10 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     ANSWER_REQUIRED(HttpStatus.BAD_REQUEST, "LS018", "답을 고르거나 입력해야 합니다."),
     ANSWER_NOT_FINALIZED(HttpStatus.CONFLICT, "LS019", "아직 확정되지 않은 문제는 결과를 바꿀 수 없습니다."),
     LESSON_HAS_ATTEMPTS(HttpStatus.CONFLICT, "LS020", "학생이 푼 차시입니다. 문제를 지우면 이미 매긴 점수가 달라집니다."),
+    QUESTION_NOT_SHORT_ANSWER(HttpStatus.BAD_REQUEST, "LS021", "주관식 문제만 같은 답을 한 번에 인정할 수 있습니다."),
+
+    // LS021은 주관식 일괄 인정(#21)이 쓴다.
+    LESSON_SCHEDULE_INVALID(HttpStatus.BAD_REQUEST, "LS022", "예약 시각이 올바르지 않습니다. 지금 이후로, 마감은 열기보다 뒤로 정해 주세요."),
 
     // LS021은 주관식 일괄 인정(#21), LS022는 열기 예약(#22)이 쓴다.
     QUESTION_COPY_EMPTY(HttpStatus.BAD_REQUEST, "LS023", "복사할 문제가 없습니다."),
