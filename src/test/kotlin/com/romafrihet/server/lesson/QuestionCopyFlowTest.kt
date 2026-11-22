@@ -2,6 +2,7 @@ package com.romafrihet.server.lesson
 
 import com.romafrihet.server.TeacherFlowFixture
 import com.romafrihet.server.common.exception.ErrorCode
+import com.romafrihet.server.course.command.CourseCommand
 import com.romafrihet.server.lesson.command.LessonCommand
 import com.romafrihet.server.lesson.command.QuestionCommand
 import org.assertj.core.api.Assertions.assertThat
@@ -102,6 +103,73 @@ class QuestionCopyFlowTest : TeacherFlowFixture() {
         assertErrorCode(ErrorCode.NOT_FOUND) {
             questionCopyService.copy(copy(targetCourseId = courseId).copy(userId = UUID.randomUUID()))
         }
+    }
+
+    @Test
+    fun `다른 교사의 수업을 대상으로 지정하면 404다`() {
+        createQuestion(lessonNumber = 1)
+        val othersCourse =
+            courseService.create(CourseCommand.Create(UUID.randomUUID(), schoolId, 3, subjectId("수학"))).id
+
+        assertErrorCode(ErrorCode.NOT_FOUND) { questionCopyService.copy(copy(targetCourseId = othersCourse)) }
+    }
+
+    @Test
+    fun `주관식은 인정 답안을 그대로 복사한다`() {
+        questionService.create(
+            QuestionCommand.Create(
+                userId = teacherId,
+                courseId = courseId,
+                lessonNumber = 1,
+                type = QuestionType.SHORT_ANSWER,
+                content = "드라이아이스가 작아지는 현상은?",
+                imageId = null,
+                timeLimitSec = 45,
+                explanation = "고체가 바로 기체가 된다",
+                options = listOf(choice("승화", correct = true), choice("승화 현상", correct = true)),
+            ),
+        )
+
+        val result = questionCopyService.copy(copy(targetCourseId = courseId))
+
+        val copied = questions(courseId, result.targetLessonNumber).single()
+        assertThat(copied.type).isEqualTo(QuestionType.SHORT_ANSWER)
+        assertThat(copied.timeLimitSec).isEqualTo(45)
+        assertThat(copied.explanation).isEqualTo("고체가 바로 기체가 된다")
+        assertThat(copied.options.sortedBy { it.displayOrder }.map { it.content to it.isCorrect })
+            .containsExactly("승화" to true, "승화 현상" to true)
+    }
+
+    @Test
+    fun `대상 차시 순번에 빈 번호가 있어도 마지막 번호 뒤에 붙인다`() {
+        createQuestion(lessonNumber = 1)
+        val removed = createQuestion(lessonNumber = 2)
+        createQuestion(lessonNumber = 2)
+        questionService.delete(QuestionCommand.Delete(teacherId, removed))
+
+        questionCopyService.copy(copy(targetCourseId = courseId, targetLessonNumber = 2))
+
+        assertThat(questions(courseId, 2).map { it.displayOrder }).containsExactly(1, 2)
+    }
+
+    @Test
+    fun `학생 풀이 기록은 복사하지 않는다`() {
+        val classroomId = joinedClassroom()
+        val questionId = createQuestion(lessonNumber = 1)
+        openLesson(classroomId, 1)
+        submit(classroomId, studentId, questionId, correct = true)
+        val before = attemptAnswerRepository.count()
+
+        questionCopyService.copy(copy(targetCourseId = courseId))
+
+        assertThat(attemptAnswerRepository.count()).isEqualTo(before)
+    }
+
+    @Test
+    fun `복사할 문제가 없으면 거절하고 새 차시도 만들지 않는다`() {
+        assertErrorCode(ErrorCode.QUESTION_COPY_EMPTY) { questionCopyService.copy(copy(targetCourseId = courseId)) }
+
+        assertThat(lessonService.findAll(LessonCommand.Query(teacherId, courseId))).hasSize(LESSON_COUNT)
     }
 
     private fun copy(targetCourseId: Long, targetLessonNumber: Int? = null, questionIds: List<Long> = emptyList()) =

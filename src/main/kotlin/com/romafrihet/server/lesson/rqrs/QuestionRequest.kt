@@ -16,6 +16,7 @@ import java.util.UUID
 private const val MIN_TIME_LIMIT_SEC = 1L
 private const val MAX_TIME_LIMIT_SEC = 300L
 private const val DEFAULT_TIME_LIMIT_SEC = 30
+private const val MAX_COPY_COUNT = 100
 
 class QuestionRequest private constructor() {
     @Schema(name = "QuestionRequestOption")
@@ -99,5 +100,3 @@ class QuestionRequest private constructor() {
         )
     }
 }
-
-private const val MAX_COPY_COUNT = 100

@@ -60,6 +60,9 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     ANSWER_NOT_FINALIZED(HttpStatus.CONFLICT, "LS019", "아직 확정되지 않은 문제는 결과를 바꿀 수 없습니다."),
     LESSON_HAS_ATTEMPTS(HttpStatus.CONFLICT, "LS020", "학생이 푼 차시입니다. 문제를 지우면 이미 매긴 점수가 달라집니다."),
 
+    // LS021은 주관식 일괄 인정(#21), LS022는 열기 예약(#22)이 쓴다.
+    QUESTION_COPY_EMPTY(HttpStatus.BAD_REQUEST, "LS023", "복사할 문제가 없습니다."),
+
     // Student profile
     STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),
     STUDENT_NUMBER_DUPLICATED(HttpStatus.CONFLICT, "SP002", "이미 가입한 학번입니다."),
