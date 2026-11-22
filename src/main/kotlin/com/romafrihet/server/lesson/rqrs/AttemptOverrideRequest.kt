@@ -5,7 +5,6 @@ import com.romafrihet.server.lesson.command.AttemptOverrideCommand
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.NotBlank
 import jakarta.validation.constraints.NotNull
-import jakarta.validation.constraints.Size
 import java.util.UUID
 
 class AttemptOverrideRequest private constructor() {
@@ -23,9 +22,8 @@ class AttemptOverrideRequest private constructor() {
 
     @Schema(name = "AttemptOverrideRequestByAnswer")
     data class ByAnswer(
-        @field:Schema(description = "문제별 분포의 answerText를 그대로 넘긴다. 공백과 대소문자는 무시하고 비교한다")
+        @field:Schema(description = "문제별 분포의 answerText를 그대로 넘긴다. 공백과 대소문자는 무시하고 비교한다. 학생 답에 길이 제한이 없어 여기도 두지 않는다")
         @field:NotBlank
-        @field:Size(max = MAX_ANSWER_LENGTH)
         val answerText: String?,
         @field:Schema(description = "인정은 RIGHT, 인정 취소는 WRONG")
         @field:NotNull
@@ -42,5 +40,3 @@ class AttemptOverrideRequest private constructor() {
             )
     }
 }
-
-private const val MAX_ANSWER_LENGTH = 500

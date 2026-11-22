@@ -55,6 +55,23 @@ class AnswerOverrideFlowTest : TeacherFlowFixture() {
     }
 
     @Test
+    fun `시간이 지났는데 확정되지 않은 응답도 먼저 확정해 함께 인정한다`() {
+        val classroomId = createClassroom()
+        val questionId = createShortAnswer()
+        openLesson(classroomId, 1)
+        val finalized = answerText(classroomId, questionId, "승화현상")
+        val expired = draftOnly(classroomId, questionId, "승화 현상", startedMinutesAgo = 10)
+
+        val changed = overrideService.overrideByAnswer(command(classroomId, questionId, "승화현상"))
+
+        assertThat(changed).isEqualTo(2)
+        assertThat(resultOf(finalized)).isEqualTo(QuestionResult.RIGHT)
+        val answer = attemptAnswerRepository.findById(expired).orElseThrow()
+        assertThat(answer.isFinalized).isTrue()
+        assertThat(answer.finalResult).isEqualTo(QuestionResult.RIGHT)
+    }
+
+    @Test
     fun `다른 반의 같은 문제 응답은 바뀌지 않는다`() {
         val classroomId = createClassroom(classNo = 1)
         val otherClassroom = createClassroom(classNo = 2)
@@ -110,6 +127,18 @@ class AnswerOverrideFlowTest : TeacherFlowFixture() {
             options = listOf(choice("승화", correct = true)),
         ),
     )
+
+    /** 답을 임시 저장만 하고 브라우저를 닫은 학생이다. 제한 시간이 지났지만 아직 확정되지 않았다. */
+    private fun draftOnly(classroomId: Long, questionId: Long, text: String, startedMinutesAgo: Long): Long {
+        val question = requireNotNull(questionRepository.findWithOptions(questionId, teacherId))
+        val classroom = classroomRepository.findById(classroomId).orElseThrow()
+        val attempt = attemptRepository.save(Attempt.create(classroom, question.lessonNumber, UUID.randomUUID()))
+        attempt.startQuestion()
+        attemptRepository.save(attempt)
+        val answer = AttemptAnswer.create(attempt, question, 0, LocalDateTime.now().minusMinutes(startedMinutesAgo))
+        answer.saveDraft(null, text)
+        return requireNotNull(attemptAnswerRepository.save(answer).id)
+    }
 
     /** 학생 응시 API 없이 주관식 답을 확정하고 응답 id를 돌려준다. */
     private fun answerText(classroomId: Long, questionId: Long, text: String): Long {

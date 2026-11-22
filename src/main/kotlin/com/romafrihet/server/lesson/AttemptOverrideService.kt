@@ -20,6 +20,8 @@ class AttemptOverrideService(
     private val resultOverrideRepository: ResultOverrideRepository,
     private val classroomRepository: ClassroomRepository,
     private val questionRepository: QuestionRepository,
+    private val attemptRepository: AttemptRepository,
+    private val attemptFinalizer: AttemptFinalizer,
 ) {
     /**
      * 주관식에서 같은 답을 쓴 학생을 한 번에 인정하거나 취소한다. 바뀐 응답 수를 돌려준다.
@@ -34,6 +36,18 @@ class AttemptOverrideService(
         }
         assertCheck(question.type == QuestionType.SHORT_ANSWER) { ErrorCode.QUESTION_NOT_SHORT_ANSWER }
         assertCheck(command.result != QuestionResult.NONE) { ErrorCode.INVALID_VALUE }
+        // 시간이 지났는데 아직 확정되지 않은 응답부터 확정한다. 건너뛰면 같은 답을 쓴 학생이 인정에서 빠지고,
+        // 나중에 다른 화면에서 확정될 때 오답으로 남는다.
+        attemptFinalizer.finalizeExpired(
+            attemptRepository.findAllByClassroomIdInAndLessonNumber(listOf(command.classroomId), command.lessonNumber),
+            mapOf(
+                command.lessonNumber to
+                    questionRepository.countByCourseIdAndLessonNumber(
+                        requireNotNull(question.course.id),
+                        command.lessonNumber,
+                    ),
+            ),
+        )
         val target = normalizeAnswer(command.answerText)
         val answers =
             attemptAnswerRepository
