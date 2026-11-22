@@ -28,6 +28,16 @@ class ReportTeacherController(private val reportService: ReportService) : BaseCo
         ReportResponse.Dashboard.of(reportService.findDashboard(ReportCommand.Dashboard(getUserId(), courseId)))
 
     @Operation(
+        operationId = "findClassroomSummaries",
+        summary = "학급 관리 반 목록",
+        description = "내 모든 반을 학생 수, 지금 열린 차시, 최근 평균, 살펴볼 학생 수와 함께 내립니다.",
+    )
+    @GetMapping("/classrooms/summaries")
+    fun findClassroomSummaries(): List<ReportResponse.ClassroomSummary> = reportService
+        .findClassroomSummaries(ReportCommand.ClassroomSummaries(getUserId()))
+        .map(ReportResponse.ClassroomSummary::of)
+
+    @Operation(
         operationId = "findScores",
         summary = "학생 점수 조회",
         description = "반과 차시로 거를 수 있습니다. 열었던 차시마다 한 행이고, 미제출 학생은 correctCount가 null입니다.",

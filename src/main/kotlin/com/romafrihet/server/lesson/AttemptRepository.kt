@@ -13,6 +13,8 @@ interface AttemptRepository :
 
     fun findAllByClassroomIdIn(classroomIds: Collection<Long>): List<Attempt>
 
+    fun findAllByClassroomIdInAndLessonNumber(classroomIds: Collection<Long>, lessonNumber: Int): List<Attempt>
+
     fun findAllByClassroomCourseId(courseId: Long): List<Attempt>
 
     fun findByClassroomIdAndUserId(classroomId: Long, userId: UUID): List<Attempt>
