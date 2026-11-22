@@ -5,6 +5,8 @@ import java.util.UUID
 class ReportCommand private constructor() {
     data class Dashboard(val userId: UUID, val courseId: Long)
 
+    data class ClassroomSummaries(val userId: UUID)
+
     data class Scores(
         val userId: UUID,
         val courseId: Long,
