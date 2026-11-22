@@ -36,6 +36,7 @@ com.romafrihet.server
 ## 하네스
 
 - `.claude/settings.json`의 훅이 Kotlin 포맷, 위험한 명령과 파일 변경 차단, 종료 전 `check`를 처리합니다. 코드를 바꾼 턴은 `check`가 실패하면 끝낼 수 없습니다.
+- API 파일(rqrs, Controller)을 바꾸고 `tools/api-tester/index.html`을 고치지 않으면 종료 훅이 한 번 멈춥니다.
 - 코드를 쓰기 전에 `spring-kotlin` 스킬을 확인합니다.
 - 검사가 실패하면 규칙을 완화하지 말고 원인을 고칩니다. 규칙이 틀렸다고 판단되면 먼저 묻습니다.
 - 사용자가 지적한 실수나 반복된 실수는 `docs/failures/`에 기록합니다. 같은 실수가 두 번 나오면 ArchUnit, detekt, 훅 중 하나의 검사로 승격합니다.
