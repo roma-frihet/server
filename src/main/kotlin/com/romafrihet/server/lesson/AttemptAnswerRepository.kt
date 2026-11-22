@@ -54,6 +54,23 @@ interface AttemptAnswerRepository : JpaRepository<AttemptAnswer, Long> {
     )
     fun findAnswerCounts(classroomIds: Collection<Long>, lessonNumber: Int): List<AnswerCountProjection>
 
+    /**
+     * 한 반·차시·문제에서 글로 답한 확정 응답이다. 일괄 인정은 채점과 같은 정규화로 비교해야 하므로
+     * 범위를 이 문제로 좁혀 읽고 비교는 Kotlin에서 한다. 한 반 인원만큼이라 크기가 작다.
+     */
+    @Query(
+        """
+        select a from AttemptAnswer a
+        join a.attempt t
+        where t.classroom.id = :classroomId
+          and t.lessonNumber = :lessonNumber
+          and a.question.id = :questionId
+          and a.isFinalized = true
+          and a.answerText is not null
+        """,
+    )
+    fun findFinalizedTextAnswers(classroomId: Long, lessonNumber: Int, questionId: Long): List<AttemptAnswer>
+
     fun deleteAllByAttemptId(attemptId: Long)
 
     /** 반이나 차시를 통째로 지울 때 쓴다. 응시 하나씩 돌면 인원수만큼 쿼리가 나가므로 한 번에 지운다. */

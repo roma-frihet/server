@@ -59,6 +59,7 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     ANSWER_REQUIRED(HttpStatus.BAD_REQUEST, "LS018", "답을 고르거나 입력해야 합니다."),
     ANSWER_NOT_FINALIZED(HttpStatus.CONFLICT, "LS019", "아직 확정되지 않은 문제는 결과를 바꿀 수 없습니다."),
     LESSON_HAS_ATTEMPTS(HttpStatus.CONFLICT, "LS020", "학생이 푼 차시입니다. 문제를 지우면 이미 매긴 점수가 달라집니다."),
+    QUESTION_NOT_SHORT_ANSWER(HttpStatus.BAD_REQUEST, "LS021", "주관식 문제만 같은 답을 한 번에 인정할 수 있습니다."),
 
     // Student profile
     STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),
