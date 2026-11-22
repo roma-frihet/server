@@ -11,6 +11,7 @@ import com.romafrihet.server.lesson.dto.LessonClassroomStatusDto
 import com.romafrihet.server.lesson.dto.LessonDto
 import org.springframework.stereotype.Service
 import org.springframework.transaction.annotation.Transactional
+import java.time.Clock
 
 @Service
 @Transactional(readOnly = true)
@@ -22,6 +23,9 @@ class LessonService(
     private val questionRepository: QuestionRepository,
     private val questionCleaner: QuestionCleaner,
     private val attemptRepository: AttemptRepository,
+    private val lessonScheduleRepository: LessonScheduleRepository,
+    private val lessonScheduleApplier: LessonScheduleApplier,
+    private val clock: Clock,
 ) {
     @Transactional
     fun create(command: LessonCommand.Create): LessonDto {
@@ -43,6 +47,7 @@ class LessonService(
             !attemptRepository.existsByClassroomCourseIdAndLessonNumber(command.courseId, command.lessonNumber),
         ) { ErrorCode.LESSON_HAS_ATTEMPTS }
 
+        lessonScheduleRepository.deleteAllByCourseIdAndLessonNumber(command.courseId, command.lessonNumber)
         lessonOpeningRepository.deleteAllByCourseIdAndLessonNumber(command.courseId, command.lessonNumber)
         questionCleaner.deleteAllInLesson(
             QuestionCommand.DeleteAllInLesson(command.courseId, command.lessonNumber),
@@ -56,6 +61,8 @@ class LessonService(
         lessonRepository.getByNumber(command.courseId, command.lessonNumber).rename(command)
     }
 
+    /** 읽기 전에 시각이 지난 예약을 적용하므로 readOnly가 아니다. */
+    @Transactional
     fun findAll(command: LessonCommand.Query): List<LessonDto> {
         courseRepository.getOwned(command.courseId, command.userId)
         return find(command.courseId)
@@ -63,10 +70,17 @@ class LessonService(
 
     private fun find(courseId: Long): List<LessonDto> {
         val classrooms = classroomRepository.findAllByCourseIdOrderByClassNoAsc(courseId)
+        val classroomIds = classrooms.map { requireNotNull(it.id) }
+        lessonScheduleApplier.applyDue(classroomIds)
         val openings =
             lessonOpeningRepository
-                .findAllByClassroomIdIn(classrooms.map { requireNotNull(it.id) })
+                .findAllByClassroomIdIn(classroomIds)
                 .associateBy { requireNotNull(it.classroom.id) to it.lessonNumber }
+        val schedules =
+            lessonScheduleRepository
+                .findAllByClassroomIdIn(classroomIds)
+                .associateBy { requireNotNull(it.classroom.id) to it.lessonNumber }
+        val zone = clock.zone
         val counts = questionRepository.findQuestionCounts(courseId).associateBy { it.lessonNumber }
         return lessonRepository.findAllByCourseIdOrderByLessonNumberAsc(courseId).map { lesson ->
             LessonDto(
@@ -76,10 +90,13 @@ class LessonService(
                 classrooms =
                 classrooms.map { classroom ->
                     val classroomId = requireNotNull(classroom.id)
+                    val schedule = schedules[classroomId to lesson.lessonNumber]
                     LessonClassroomStatusDto(
                         classroomId = classroomId,
                         classNo = classroom.classNo,
                         status = openings[classroomId to lesson.lessonNumber]?.status ?: LessonStatus.PLANNED,
+                        scheduledOpenAt = schedule?.openAt?.atZone(zone)?.toOffsetDateTime(),
+                        scheduledFinishAt = schedule?.finishAt?.atZone(zone)?.toOffsetDateTime(),
                     )
                 },
             )

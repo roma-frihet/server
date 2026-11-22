@@ -249,7 +249,16 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 | 차시 열기 | `POST /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/open` |
 | 차시 닫기 | `POST .../close` |
 | 차시 마감 | `POST .../finish` |
+| 열기 예약 · 자동 마감 | `PUT /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/schedule` |
+| 예약 취소 | `DELETE .../schedule` |
 | 차시 문제별 결과 | `GET /api/v1/teacher/courses/{courseId}/lessons/{lessonNumber}/question-stats?classroomIds=` |
+
+**열기 예약과 자동 마감** — `{ "openAt": "2026-11-23T09:10:00+09:00", "finishAt": "2026-11-23T09:25:00+09:00" }`처럼 **시간대를 포함해** 보냅니다. 서버 시계는 UTC라 시간대 없이 보내면 9시간 어긋납니다. 이미 열린 차시는 `finishAt`만 보냅니다(자동 마감). 차시 목록의 반별 상태에 `scheduledOpenAt`, `scheduledFinishAt`이 함께 옵니다.
+
+- 서버는 스케줄러 없이, 시각이 지난 뒤 그 반의 상태를 **처음 읽을 때** 반영합니다. 학생이 차시 목록을 열거나 교사가 화면을 새로 고치면 열립니다.
+- 다른 차시가 열려 있으면 예약 열기는 미뤄지고, 그 차시가 닫히거나 마감되면 열립니다.
+- **열기 전에 마감 시각까지 지나 버리면 열지 않고 예약을 지웁니다.** 열자마자 마감되면 학생이 풀 수 없고 되돌릴 수 없기 때문입니다. 교사는 직접 열 수 있습니다.
+- 교사가 직접 열면 열기 예약이, 직접 마감하면 예약 전체가 지워집니다.
 
 **차시 문제별 결과** — 반마다 차시 상태, 응답 수, 문제별 정답 수와 분포가 옵니다. 객관식은 `options[].count`, 주관식은 `answerTexts`(공백·대소문자를 무시하고 묶은 답, 많은 순)를 씁니다. `classroomIds`를 하나 주면 차시 상세와 수업 중 화면, 여러 개 주면 반 비교, 비우면 그 수업의 모든 반입니다. 수업 중 화면은 이 API를 몇 초마다 다시 부르면 됩니다. 이 수업의 반이 아닌 id는 조용히 빠지니 요청한 반 수보다 적게 올 수 있습니다.
 

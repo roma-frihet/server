@@ -3,11 +3,16 @@ package com.romafrihet.server.lesson
 import com.romafrihet.server.common.web.ApiPaths
 import com.romafrihet.server.common.web.BaseController
 import com.romafrihet.server.lesson.command.LessonOpeningCommand
+import com.romafrihet.server.lesson.rqrs.LessonOpeningRequest
 import io.swagger.v3.oas.annotations.Operation
 import io.swagger.v3.oas.annotations.tags.Tag
+import jakarta.validation.Valid
 import org.springframework.http.HttpStatus
+import org.springframework.web.bind.annotation.DeleteMapping
 import org.springframework.web.bind.annotation.PathVariable
 import org.springframework.web.bind.annotation.PostMapping
+import org.springframework.web.bind.annotation.PutMapping
+import org.springframework.web.bind.annotation.RequestBody
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.ResponseStatus
 import org.springframework.web.bind.annotation.RestController
@@ -45,4 +50,28 @@ class LessonOpeningTeacherController(private val lessonOpeningService: LessonOpe
     @ResponseStatus(HttpStatus.NO_CONTENT)
     fun close(@PathVariable classroomId: Long, @PathVariable lessonNumber: Int) =
         lessonOpeningService.close(LessonOpeningCommand.Change(getUserId(), classroomId, lessonNumber))
+
+    @Operation(
+        operationId = "scheduleLesson",
+        summary = "열기 예약, 자동 마감",
+        description =
+        "정한 시각에 차시를 열고 마감합니다. 이미 예약이 있으면 바꿉니다. 열린 차시는 finishAt만 보냅니다. " +
+            "시각이 지난 뒤 이 반의 차시 상태를 처음 읽을 때 반영됩니다.",
+    )
+    @PutMapping("/classrooms/{classroomId}/lessons/{lessonNumber}/schedule")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun schedule(
+        @PathVariable classroomId: Long,
+        @PathVariable lessonNumber: Int,
+        @Valid @RequestBody request: LessonOpeningRequest.Schedule,
+    ) = lessonOpeningService.schedule(request.toCommand(getUserId(), classroomId, lessonNumber))
+
+    @Operation(
+        operationId = "cancelLessonSchedule",
+        summary = "예약 취소",
+    )
+    @DeleteMapping("/classrooms/{classroomId}/lessons/{lessonNumber}/schedule")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    fun cancelSchedule(@PathVariable classroomId: Long, @PathVariable lessonNumber: Int) =
+        lessonOpeningService.cancelSchedule(LessonOpeningCommand.Change(getUserId(), classroomId, lessonNumber))
 }

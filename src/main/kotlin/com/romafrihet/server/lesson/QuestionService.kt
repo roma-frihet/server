@@ -1,5 +1,6 @@
 package com.romafrihet.server.lesson
 
+import com.romafrihet.server.classroom.ClassroomRepository
 import com.romafrihet.server.common.exception.BusinessException
 import com.romafrihet.server.common.exception.ErrorCode
 import com.romafrihet.server.common.exception.assertCheck
@@ -22,6 +23,8 @@ class QuestionService(
     private val questionImageCleaner: QuestionImageCleaner,
     private val lessonRepository: LessonRepository,
     private val attemptRepository: AttemptRepository,
+    private val classroomRepository: ClassroomRepository,
+    private val lessonScheduleApplier: LessonScheduleApplier,
 ) {
     /** 서명 URL 발급은 외부 호출이라 트랜잭션 없이 실행한다. */
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -45,6 +48,7 @@ class QuestionService(
     fun create(command: QuestionCommand.Create): Long {
         val course = courseRepository.getOwned(command.courseId, command.userId)
         validateLessonNumber(command.courseId, command.lessonNumber)
+        applyDueSchedules(command.courseId)
         validateEditable(command.courseId, command.lessonNumber)
         questionContentValidator.validate(
             userId = command.userId,
@@ -61,6 +65,7 @@ class QuestionService(
     fun update(command: QuestionCommand.Update) {
         val question = questionRepository.getOwned(command.questionId, command.userId)
         val courseId = requireNotNull(question.course.id)
+        applyDueSchedules(courseId)
         questionContentValidator.validate(
             userId = command.userId,
             type = command.type,
@@ -83,11 +88,24 @@ class QuestionService(
     @Transactional
     fun delete(command: QuestionCommand.Delete) {
         val question = questionRepository.getOwned(command.questionId, command.userId)
+        applyDueSchedules(requireNotNull(question.course.id))
         validateNoAttempts(requireNotNull(question.course.id), question.lessonNumber)
 
         val images = question.imageIds()
         questionRepository.delete(question)
         questionImageCleaner.removeUnused(images)
+    }
+
+    /**
+     * 열기 시각이 지났지만 아직 아무도 읽지 않아 적용되지 않은 예약을 먼저 적용한다.
+     * 그러지 않으면 열려야 할 차시가 "열지 않은 차시"로 보여 문제를 고칠 수 있고, 그 뒤 예약이 조용히 사라진다.
+     */
+    private fun applyDueSchedules(courseId: Long) {
+        lessonScheduleApplier.applyDue(
+            classroomRepository.findAllByCourseIdOrderByClassNoAsc(courseId).map {
+                requireNotNull(it.id)
+            },
+        )
     }
 
     private fun validateLessonNumber(courseId: Long, lessonNumber: Int) {
