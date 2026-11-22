@@ -8,7 +8,7 @@ import com.romafrihet.server.common.exception.assertCheck
 import com.romafrihet.server.course.Course
 import com.romafrihet.server.course.CourseRepository
 import com.romafrihet.server.course.getOwned
-import com.romafrihet.server.lesson.AttemptAnswerRepository
+import com.romafrihet.server.lesson.AttemptRepository
 import com.romafrihet.server.lesson.LessonRepository
 import com.romafrihet.server.lesson.QuestionRepository
 import com.romafrihet.server.lesson.QuestionResult
@@ -28,7 +28,7 @@ class ScoreExportService(
     private val classroomRepository: ClassroomRepository,
     private val lessonRepository: LessonRepository,
     private val questionRepository: QuestionRepository,
-    private val attemptAnswerRepository: AttemptAnswerRepository,
+    private val attemptRepository: AttemptRepository,
     private val classroomRecordsReader: ClassroomRecordsReader,
 ) {
     /** 읽기 전에 시간이 지난 응답을 확정하므로 readOnly가 아니다. */
@@ -145,7 +145,7 @@ class ScoreExportService(
     private fun results(
         classrooms: List<Classroom>,
         lessonNumber: Int,
-    ): Map<Pair<Long?, Long?>, List<AnswerResultProjection>> = attemptAnswerRepository
+    ): Map<Pair<Long?, Long?>, List<AnswerResultProjection>> = attemptRepository
         .findResults(classrooms.map { requireNotNull(it.id) }, lessonNumber)
         .groupBy { it.classroomId to it.questionId }
 

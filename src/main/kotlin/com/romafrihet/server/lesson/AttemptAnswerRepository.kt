@@ -1,7 +1,6 @@
 package com.romafrihet.server.lesson
 
 import com.romafrihet.server.lesson.projection.AnswerCountProjection
-import com.romafrihet.server.lesson.projection.AnswerResultProjection
 import com.romafrihet.server.lesson.projection.ClassroomResponseCountProjection
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
@@ -103,19 +102,4 @@ interface AttemptAnswerRepository : JpaRepository<AttemptAnswer, Long> {
         """,
     )
     fun deleteAllByCourseIdAndLessonNumber(courseId: Long, lessonNumber: Int)
-
-    /** 성적 내보내기의 정오표와 문제별 정답률에 쓴다. 확정되지 않은 응답은 아직 결과가 아니라 넣지 않는다. */
-    @Query(
-        """
-        select new com.romafrihet.server.lesson.projection.AnswerResultProjection(
-            t.classroom.id, t.userId, a.question.id, a.finalResult
-        )
-        from AttemptAnswer a
-        join a.attempt t
-        where t.classroom.id in :classroomIds
-          and t.lessonNumber = :lessonNumber
-          and a.isFinalized = true
-        """,
-    )
-    fun findResults(classroomIds: Collection<Long>, lessonNumber: Int): List<AnswerResultProjection>
 }
