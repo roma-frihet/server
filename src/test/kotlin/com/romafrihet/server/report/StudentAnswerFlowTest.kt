@@ -2,14 +2,20 @@ package com.romafrihet.server.report
 
 import com.romafrihet.server.TeacherFlowFixture
 import com.romafrihet.server.common.exception.ErrorCode
+import com.romafrihet.server.lesson.Attempt
+import com.romafrihet.server.lesson.AttemptAnswer
 import com.romafrihet.server.lesson.AttemptOverrideService
 import com.romafrihet.server.lesson.LessonStatus
 import com.romafrihet.server.lesson.QuestionResult
+import com.romafrihet.server.lesson.QuestionType
 import com.romafrihet.server.lesson.command.AttemptOverrideCommand
+import com.romafrihet.server.lesson.command.QuestionCommand
 import com.romafrihet.server.report.command.ReportCommand
+import io.mockk.every
 import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
+import java.time.LocalDateTime
 import java.util.UUID
 
 class StudentAnswerFlowTest : TeacherFlowFixture() {
@@ -58,6 +64,88 @@ class StudentAnswerFlowTest : TeacherFlowFixture() {
         assertThat(after.correctCount).isEqualTo(1)
         assertThat(after.answers.single().result).isEqualTo(StudentAnswerResult.RIGHT)
         assertThat(after.answers.single().isOverridden).isTrue()
+    }
+
+    @Test
+    fun `아직 제한 시간 안에서 푸는 문제는 IN_PROGRESS다`() {
+        val classroomId = joinedClassroom()
+        val questionId = createQuestion(lessonNumber = 1)
+        openLesson(classroomId, 1)
+        val question = requireNotNull(questionRepository.findWithOptions(questionId, teacherId))
+        val attempt =
+            attemptRepository.save(
+                Attempt.create(classroomRepository.findById(classroomId).orElseThrow(), 1, studentId),
+            )
+        attemptAnswerRepository.save(AttemptAnswer.create(attempt, question, 0, LocalDateTime.now()))
+
+        val answer = answers(classroomId).answers.single()
+
+        assertThat(answer.result).isEqualTo(StudentAnswerResult.IN_PROGRESS)
+        assertThat(answer.attemptAnswerId).isNotNull()
+    }
+
+    @Test
+    fun `주관식은 쓴 답과 인정 답안을 내리고 보기는 비운다`() {
+        val classroomId = joinedClassroom()
+        val questionId =
+            questionService.create(
+                QuestionCommand.Create(
+                    userId = teacherId,
+                    courseId = courseId,
+                    lessonNumber = 1,
+                    type = QuestionType.SHORT_ANSWER,
+                    content = "드라이아이스가 작아지는 현상은?",
+                    imageId = null,
+                    timeLimitSec = 30,
+                    explanation = null,
+                    options = listOf(choice("승화", correct = true)),
+                ),
+            )
+        openLesson(classroomId, 1)
+        val question = requireNotNull(questionRepository.findWithOptions(questionId, teacherId))
+        val attempt =
+            attemptRepository.save(
+                Attempt.create(classroomRepository.findById(classroomId).orElseThrow(), 1, studentId),
+            )
+        val now = LocalDateTime.now()
+        attemptAnswerRepository.save(
+            AttemptAnswer.create(attempt, question, 0, now).apply { finalizeWith(null, "기화", false, now) },
+        )
+
+        val answer = answers(classroomId).answers.single()
+
+        assertThat(answer.answerText).isEqualTo("기화")
+        assertThat(answer.acceptedAnswers).containsExactly("승화")
+        assertThat(answer.options).isEmpty()
+        assertThat(answer.result).isEqualTo(StudentAnswerResult.WRONG)
+    }
+
+    @Test
+    fun `이미지 문제는 서명 URL을 붙이고 번호는 빈 번호 없이 1부터 매긴다`() {
+        val classroomId = joinedClassroom()
+        val image = saveImage(teacherId)
+        every { storageClient.createSignedUrls(any()) } returns mapOf(image.storagePath to "https://signed/q.png")
+        val removed = createQuestion(lessonNumber = 1)
+        questionService.create(
+            QuestionCommand.Create(
+                userId = teacherId,
+                courseId = courseId,
+                lessonNumber = 1,
+                type = QuestionType.MULTIPLE_CHOICE,
+                content = null,
+                imageId = image.id,
+                timeLimitSec = 30,
+                explanation = null,
+                options = listOf(choice("가", correct = true), choice("나")),
+            ),
+        )
+        questionService.delete(QuestionCommand.Delete(teacherId, removed))
+
+        val answer = answers(classroomId).answers.single()
+
+        assertThat(answer.number).isEqualTo(1)
+        assertThat(answer.displayOrder).isEqualTo(1)
+        assertThat(answer.imageUrl).isEqualTo("https://signed/q.png")
     }
 
     @Test

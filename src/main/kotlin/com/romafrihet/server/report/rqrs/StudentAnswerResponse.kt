@@ -42,10 +42,14 @@ class StudentAnswerResponse private constructor() {
     @Schema(name = "StudentAnswerResponseAnswer")
     data class Answer(
         val questionId: Long,
+        @field:Schema(description = "학생이 본 문제 번호. 1부터 빈 번호 없이 이어진다")
+        val number: Int,
+        @field:Schema(description = "정렬 순서. 가운데 문제를 지우면 빈 번호가 생기므로 화면 번호로는 number를 쓴다")
         val displayOrder: Int,
         val type: QuestionType,
         val content: String?,
-        val hasImage: Boolean,
+        @field:Schema(description = "문제 이미지의 서명 URL. 10분간 유효하다")
+        val imageUrl: String?,
         val explanation: String?,
         @field:Schema(description = "객관식 보기. 주관식이면 빈 목록")
         val options: List<Option>,
@@ -63,10 +67,11 @@ class StudentAnswerResponse private constructor() {
         companion object {
             fun of(dto: StudentLessonAnswerDto) = Answer(
                 questionId = dto.questionId,
+                number = dto.number,
                 displayOrder = dto.displayOrder,
                 type = dto.type,
                 content = dto.content,
-                hasImage = dto.hasImage,
+                imageUrl = dto.imageUrl,
                 explanation = dto.explanation,
                 options = dto.options.map(Option::of),
                 acceptedAnswers = dto.acceptedAnswers,
@@ -85,7 +90,7 @@ class StudentAnswerResponse private constructor() {
         val optionId: Long,
         val displayOrder: Int,
         val content: String?,
-        val hasImage: Boolean,
+        val imageUrl: String?,
         @get:JsonProperty("isCorrect")
         val isCorrect: Boolean,
     ) {
@@ -94,7 +99,7 @@ class StudentAnswerResponse private constructor() {
                 optionId = dto.optionId,
                 displayOrder = dto.displayOrder,
                 content = dto.content,
-                hasImage = dto.hasImage,
+                imageUrl = dto.imageUrl,
                 isCorrect = dto.isCorrect,
             )
         }

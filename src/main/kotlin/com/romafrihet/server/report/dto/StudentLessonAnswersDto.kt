@@ -18,10 +18,11 @@ data class StudentLessonAnswersDto(
 
 data class StudentLessonAnswerDto(
     val questionId: Long,
+    val number: Int,
     val displayOrder: Int,
     val type: QuestionType,
     val content: String?,
-    val hasImage: Boolean,
+    val imageUrl: String?,
     val explanation: String?,
     val options: List<AnswerOptionDto>,
     val acceptedAnswers: List<String>,
@@ -37,6 +38,6 @@ data class AnswerOptionDto(
     val optionId: Long,
     val displayOrder: Int,
     val content: String?,
-    val hasImage: Boolean,
+    val imageUrl: String?,
     val isCorrect: Boolean,
 )
