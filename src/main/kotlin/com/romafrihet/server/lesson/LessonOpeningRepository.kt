@@ -11,6 +11,8 @@ interface LessonOpeningRepository : JpaRepository<LessonOpening, Long> {
 
     fun findAllByClassroomIdIn(classroomIds: Collection<Long>): List<LessonOpening>
 
+    fun findAllByClassroomIdInAndLessonNumber(classroomIds: Collection<Long>, lessonNumber: Int): List<LessonOpening>
+
     fun findAllByClassroomIdOrderByLessonNumberAsc(classroomId: Long): List<LessonOpening>
 
     fun existsByClassroomId(classroomId: Long): Boolean

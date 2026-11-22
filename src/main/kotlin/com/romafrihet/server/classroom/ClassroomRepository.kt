@@ -22,6 +22,8 @@ interface ClassroomRepository : JpaRepository<Classroom, Long> {
 
     fun findAllByCourseIdOrderByClassNoAsc(courseId: Long): List<Classroom>
 
+    fun findAllByCourseIdAndIdInOrderByClassNoAsc(courseId: Long, ids: Collection<Long>): List<Classroom>
+
     fun existsByCourseId(courseId: Long): Boolean
 
     /**
