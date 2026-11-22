@@ -2,6 +2,7 @@ package com.romafrihet.server.lesson.dto
 
 import com.romafrihet.server.lesson.LessonStatus
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 
 data class LessonDto(
     val lessonNumber: Int,
@@ -10,7 +11,13 @@ data class LessonDto(
     val classrooms: List<LessonClassroomStatusDto>,
 )
 
-data class LessonClassroomStatusDto(val classroomId: Long, val classNo: Int, val status: LessonStatus)
+data class LessonClassroomStatusDto(
+    val classroomId: Long,
+    val classNo: Int,
+    val status: LessonStatus,
+    val scheduledOpenAt: OffsetDateTime?,
+    val scheduledFinishAt: OffsetDateTime?,
+)
 
 data class ClassroomLessonStatusDto(
     val classroomId: Long,

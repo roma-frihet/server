@@ -244,10 +244,25 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 
 | | API |
 |---|---|
+| 학급 관리 반 목록 | `GET /api/v1/teacher/classrooms/summaries` |
 | 대시보드 | `GET /api/v1/teacher/courses/{courseId}/dashboard` |
 | 차시 열기 | `POST /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/open` |
 | 차시 닫기 | `POST .../close` |
 | 차시 마감 | `POST .../finish` |
+| 열기 예약 · 자동 마감 | `PUT /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/schedule` |
+| 예약 취소 | `DELETE .../schedule` |
+| 차시 문제별 결과 | `GET /api/v1/teacher/courses/{courseId}/lessons/{lessonNumber}/question-stats?classroomIds=` |
+
+**열기 예약과 자동 마감** — `{ "openAt": "2026-11-23T09:10:00+09:00", "finishAt": "2026-11-23T09:25:00+09:00" }`처럼 **시간대를 포함해** 보냅니다. 서버 시계는 UTC라 시간대 없이 보내면 9시간 어긋납니다. 이미 열린 차시는 `finishAt`만 보냅니다(자동 마감). 차시 목록의 반별 상태에 `scheduledOpenAt`, `scheduledFinishAt`이 함께 옵니다.
+
+- 서버는 스케줄러 없이, 시각이 지난 뒤 그 반의 상태를 **처음 읽을 때** 반영합니다. 학생이 차시 목록을 열거나 교사가 화면을 새로 고치면 열립니다.
+- 다른 차시가 열려 있으면 예약 열기는 미뤄지고, 그 차시가 닫히거나 마감되면 열립니다.
+- **열기 전에 마감 시각까지 지나 버리면 열지 않고 예약을 지웁니다.** 열자마자 마감되면 학생이 풀 수 없고 되돌릴 수 없기 때문입니다. 교사는 직접 열 수 있습니다.
+- 교사가 직접 열면 열기 예약이, 직접 마감하면 예약 전체가 지워집니다.
+
+**차시 문제별 결과** — 반마다 차시 상태, 응답 수, 문제별 정답 수와 분포가 옵니다. 객관식은 `options[].count`, 주관식은 `answerTexts`(공백·대소문자를 무시하고 묶은 답, 많은 순)를 씁니다. `classroomIds`를 하나 주면 차시 상세와 수업 중 화면, 여러 개 주면 반 비교, 비우면 그 수업의 모든 반입니다. 수업 중 화면은 이 API를 몇 초마다 다시 부르면 됩니다. 이 수업의 반이 아닌 id는 조용히 빠지니 요청한 반 수보다 적게 올 수 있습니다.
+
+**학급 관리 반 목록** — 교사의 모든 반을 한 번에 줍니다. 반마다 학생 수, 지금 열린 차시(`openLesson`, 없으면 `null`)와 응답 수, 마지막으로 마감한 차시, 최근 차시 평균, 살펴볼 학생 수가 들어 있습니다. 살펴볼 학생은 정답률이 떨어졌거나 지난 차시에 답하지 않은 학생이고, **지금 열려 있는 차시에 아직 답하지 않은 학생은 세지 않습니다**(푸는 중이라서).
 
 ### 5-6. 학생 관리
 
@@ -255,12 +270,18 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 |---|---|
 | 반 학생 목록·점수 | `GET /api/v1/teacher/classrooms/{classroomId}/students?keyword=` |
 | 학생 상세 | `GET /api/v1/teacher/classrooms/{classroomId}/students/{membershipId}` |
+| 학생의 차시 풀이 | `GET /api/v1/teacher/classrooms/{classroomId}/students/{membershipId}/lessons/{lessonNumber}/answers` |
 | 점수 조회 | `GET /api/v1/teacher/courses/{courseId}/scores` (페이지) |
 | 성적 내보내기 (CSV) | `GET /api/v1/teacher/courses/{courseId}/scores/export?sheet=&classroomId=&lessonNumber=` |
 | 결과 덮어쓰기 | `PUT /api/v1/teacher/attempt-answers/{attemptAnswerId}/result` |
+| 주관식 같은 답 한 번에 인정 | `POST /api/v1/teacher/classrooms/{classroomId}/lessons/{lessonNumber}/questions/{questionId}/answer-overrides` |
 | 비밀번호 초기화 | `POST /api/v1/teacher/classrooms/{classroomId}/students/{membershipId}/password-reset` |
 
 **결과 덮어쓰기** — 접속이 끊기는 등 사정이 있을 때 교사가 학생 이야기를 듣고 결과를 바꿉니다. 학생 상세에 문제별 `attemptAnswerId`가 들어 있고, 그걸로 지정합니다. 확정된 문제만 바꿀 수 있고 **학생이 시작조차 하지 않은 문제는 목록에 없습니다** — 교사도 손댈 수 없습니다. 원래 결과는 이력으로 남고, 바뀐 항목은 `isOverridden`으로 표시됩니다.
+
+**학생의 차시 풀이** — 학생 상세의 차시를 골라 부릅니다. 문제 순서대로 **모든 문제**가 오고, 학생이 고른 보기(`selectedOptionId`)와 쓴 답(`answerText`), 정답(객관식 `options[].isCorrect`, 주관식 `acceptedAnswers`), 결과가 들어 있습니다. 결과에는 `RIGHT`/`WRONG`/`NONE` 말고도 `IN_PROGRESS`(푸는 중), `NOT_STARTED`(시작 안 함)가 있습니다. 화면 번호는 `number`(학생이 본 번호, 1부터)를 씁니다. 이미지는 `imageUrl`(10분 유효)입니다. 결과를 고칠 때는 `attemptAnswerId`로 결과 덮어쓰기를 부릅니다.
+
+**주관식 같은 답 한 번에 인정** — 문제별 결과의 `answerTexts[].answerText`를 그대로 `{ "answerText": ..., "result": "RIGHT" }`로 보냅니다. 그 반·차시·문제에서 같은 답(공백·대소문자 무시)을 쓴 학생의 결과가 한 번에 바뀌고 `changedCount`가 옵니다. 취소는 `"result": "WRONG"`입니다. `rightCount == count`면 이미 모두 인정된 답입니다. 호출한 뒤에 같은 답을 낸 학생은 다시 인정해야 합니다(인정 답안 자체를 바꾸지는 않습니다).
 
 **성적 내보내기** — JSON이 아니라 **CSV 파일**(UTF-8 BOM, 엑셀에서 바로 열림)이 옵니다. 파일 이름은 `Content-Disposition`의 `filename*`에 있습니다. `sheet`은 `STUDENT_SCORES`(학생 × 차시 점수), `QUESTION_RATES`(문제별 정답률, 소수 첫째 자리), `ANSWER_SHEET`(학생 × 문제 O/X)이고, 뒤의 둘은 `lessonNumber`가 필요합니다. `classroomId`를 비우면 모든 반입니다.
 

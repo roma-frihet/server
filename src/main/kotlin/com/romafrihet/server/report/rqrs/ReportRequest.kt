@@ -11,6 +11,7 @@ import java.util.UUID
 
 private const val MAX_PAGE_SIZE = 100L
 private const val DEFAULT_PAGE_SIZE = 20
+private const val MAX_CLASSROOM_COUNT = 20
 
 class ReportRequest private constructor() {
     @Schema(name = "ReportRequestScoreQuery")
@@ -30,6 +31,20 @@ class ReportRequest private constructor() {
             lessonNumber = lessonNumber,
             page = page ?: 0,
             size = size ?: DEFAULT_PAGE_SIZE,
+        )
+    }
+
+    @Schema(name = "ReportRequestQuestionStatsQuery")
+    data class QuestionStatsQuery(
+        @field:Schema(description = "비우면 수업의 모든 반")
+        @field:Size(max = MAX_CLASSROOM_COUNT)
+        val classroomIds: List<Long>? = null,
+    ) {
+        fun toCommand(userId: UUID, courseId: Long, lessonNumber: Int) = ReportCommand.QuestionStats(
+            userId = userId,
+            courseId = courseId,
+            lessonNumber = lessonNumber,
+            classroomIds = classroomIds.orEmpty(),
         )
     }
 
