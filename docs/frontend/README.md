@@ -220,8 +220,11 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 | 문제 수정 | `PUT /api/v1/teacher/questions/{questionId}` |
 | 문제 삭제 | `DELETE /api/v1/teacher/questions/{questionId}` |
 | 이미지 업로드 | `POST /api/v1/teacher/question-images` (multipart) |
+| 차시·문제 복사 | `POST /api/v1/teacher/courses/{courseId}/lessons/{lessonNumber}/copy` |
 
 이미지는 먼저 업로드해서 `imageId`를 받고, 문제를 만들 때 그 id를 넣습니다.
+
+**차시·문제 복사** — `{ "targetCourseId": 3, "targetLessonNumber": null, "questionIds": [11, 12] }`. `targetLessonNumber`를 비우면 대상 수업에 원본 제목으로 새 차시를 만들고, `questionIds`를 비우면 차시 전체를 복사합니다(한 번에 100문제까지). 문제·보기·제한 시간·해설이 대상 차시 맨 뒤에 붙고 학생 풀이 기록은 따라가지 않습니다. 대상 차시가 이미 열렸거나 푼 학생이 있으면 409(`LS004`), 복사할 문제가 없으면 400(`LS023`)입니다.
 
 ### 5-5. 수업 중
 

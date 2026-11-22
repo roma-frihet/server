@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional
 class QuestionService(
     private val questionRepository: QuestionRepository,
     private val courseRepository: CourseRepository,
-    private val lessonOpeningRepository: LessonOpeningRepository,
+    private val lessonEditGuard: LessonEditGuard,
     private val questionContentValidator: QuestionContentValidator,
     private val questionImageUrlResolver: QuestionImageUrlResolver,
     private val questionImageCleaner: QuestionImageCleaner,
@@ -48,8 +48,7 @@ class QuestionService(
     fun create(command: QuestionCommand.Create): Long {
         val course = courseRepository.getOwned(command.courseId, command.userId)
         validateLessonNumber(command.courseId, command.lessonNumber)
-        applyDueSchedules(command.courseId)
-        validateEditable(command.courseId, command.lessonNumber)
+        lessonEditGuard.validateCanAddQuestions(command.courseId, command.lessonNumber)
         questionContentValidator.validate(
             userId = command.userId,
             type = command.type,
@@ -112,21 +111,6 @@ class QuestionService(
         if (!lessonRepository.existsByCourseIdAndLessonNumber(courseId, lessonNumber)) {
             throw BusinessException(ErrorCode.NOT_FOUND)
         }
-    }
-
-    /**
-     * 문제를 더하거나 내용을 바꿀 때의 조건. 이미 연 차시에 문제가 늘면 점수의 분모가 달라져
-     * 먼저 푼 학생과 나중에 푼 학생을 비교할 수 없게 된다.
-     */
-    private fun validateEditable(courseId: Long, lessonNumber: Int) {
-        val locked =
-            lessonOpeningRepository.existsByClassroomCourseIdAndLessonNumberAndClosedAtIsNull(courseId, lessonNumber) ||
-                lessonOpeningRepository.existsByClassroomCourseIdAndLessonNumberAndFinishedAtIsNotNull(
-                    courseId,
-                    lessonNumber,
-                ) ||
-                attemptRepository.existsByClassroomCourseIdAndLessonNumber(courseId, lessonNumber)
-        assertCheck(!locked) { ErrorCode.LESSON_LOCKED_BY_OPENING }
     }
 
     /**
