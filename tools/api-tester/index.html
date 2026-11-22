@@ -127,6 +127,7 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
 </section>
 
 <section id="report">
+  <div class="card"><h2>학급 관리 반 목록</h2><div class="row"><button class="primary" data-act="classroomSummaries">내 모든 반 불러오기</button></div><div id="classroomSummaries"></div></div>
   <div class="card"><h2>대시보드</h2><div class="row"><button class="primary" data-act="dashboard">선택한 수업 불러오기</button></div><div id="dashboard"></div></div>
   <div class="card"><h2>학생 관리</h2><div class="row"><label>이름 검색<input id="studentKeyword"></label><button class="primary" data-act="students">선택한 반 불러오기</button></div><div id="students"></div></div>
   <div class="card"><h2>학생 점수 조회</h2><div class="row"><label><span>반</span><select id="scoreClassroom"><option value="">전체 반</option><option value="picked">선택한 반</option></select></label><label>차시 (비우면 전체)<input id="scoreLesson" type="number" min="1" style="width:90px"></label><label>페이지 크기<input id="scoreSize" type="number" value="20" min="1" max="100" style="width:80px"></label><button class="primary" data-act="scores" data-page="0">조회</button></div><div id="scores"></div></div>
@@ -325,6 +326,11 @@ const actions={
   async myWrongQuestions(){
     const d=await call('student','GET',`/api/v1/classrooms/${classroomId()}/report/wrong-questions`);
     $('myReport').innerHTML=d.length?`<h3>틀린 문제 ${d.length}개</h3>${wrongList(d)}`:'<p class="muted">마감한 차시에서 틀린 문제가 없어요.</p>';
+  },
+  async classroomSummaries(){
+    const d=await call('teacher','GET','/api/v1/teacher/classrooms/summaries');
+    const avg=v=>v==null?'-':(+v).toFixed(1);
+    $('classroomSummaries').innerHTML=d.length?`<table><tr><th>반</th><th>학생</th><th>지금 열린 차시</th><th>마지막 마감</th><th>최근 평균</th><th>살펴볼 학생</th></tr>${d.map(c=>`<tr><td>${c.grade}학년 ${esc(c.subjectName)} ${c.classNo}반</td><td>${c.studentCount}명</td><td>${c.openLesson?`${c.openLesson.lessonNumber}. ${esc(c.openLesson.title)} <span class="muted">응답 ${c.openLesson.responseCount} / ${c.studentCount}</span>`:'-'}</td><td>${c.lastFinishedLessonNumber?c.lastFinishedLessonNumber+'차시':'-'}</td><td>${avg(c.latestAverageCorrect)} / ${c.latestQuestionCount}</td><td>${c.watchStudentCount}명</td></tr>`).join('')}</table>`:'<p class="muted">반이 없습니다.</p>';
   },
   async dashboard(){
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/dashboard`);
