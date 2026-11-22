@@ -1,5 +1,7 @@
 package com.romafrihet.server.lesson
 
+import com.romafrihet.server.lesson.projection.AnswerCountProjection
+import com.romafrihet.server.lesson.projection.ClassroomResponseCountProjection
 import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
@@ -36,6 +38,37 @@ interface AttemptAnswerRepository : JpaRepository<AttemptAnswer, Long> {
         """,
     )
     fun findWrongAnswers(classroomId: Long, userId: UUID, lessonNumbers: Collection<Int>): List<AttemptAnswer>
+
+    /** 문제별 분포를 한 번에 센다. 확정되지 않은 응답은 학생이 아직 푸는 중이라 넣지 않는다. */
+    @Query(
+        """
+        select new com.romafrihet.server.lesson.projection.AnswerCountProjection(
+            t.classroom.id, a.question.id, a.optionId, a.answerText, a.finalResult, count(a)
+        )
+        from AttemptAnswer a
+        join a.attempt t
+        where t.classroom.id in :classroomIds
+          and t.lessonNumber = :lessonNumber
+          and a.isFinalized = true
+        group by t.classroom.id, a.question.id, a.optionId, a.answerText, a.finalResult
+        """,
+    )
+    fun findAnswerCounts(classroomIds: Collection<Long>, lessonNumber: Int): List<AnswerCountProjection>
+
+    @Query(
+        """
+        select new com.romafrihet.server.lesson.projection.ClassroomResponseCountProjection(
+            t.classroom.id, count(distinct t.userId)
+        )
+        from AttemptAnswer a
+        join a.attempt t
+        where t.classroom.id in :classroomIds
+          and t.lessonNumber = :lessonNumber
+          and a.finalResult <> com.romafrihet.server.lesson.QuestionResult.NONE
+        group by t.classroom.id
+        """,
+    )
+    fun findResponseCounts(classroomIds: Collection<Long>, lessonNumber: Int): List<ClassroomResponseCountProjection>
 
     fun deleteAllByAttemptId(attemptId: Long)
 
