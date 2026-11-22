@@ -1,6 +1,7 @@
 package com.romafrihet.server.report
 
 import com.romafrihet.server.TeacherFlowFixture
+import com.romafrihet.server.classroom.command.ClassroomCommand
 import com.romafrihet.server.lesson.command.LessonOpeningCommand
 import com.romafrihet.server.report.command.ReportCommand
 import org.assertj.core.api.Assertions.assertThat
@@ -52,12 +53,38 @@ class ClassroomSummaryFlowTest : TeacherFlowFixture() {
     }
 
     @Test
-    fun `답하지 않은 학생은 살펴볼 학생으로 센다`() {
+    fun `열려 있는 차시의 미응답은 빼고 닫은 뒤에도 답하지 않았으면 살펴볼 학생으로 센다`() {
         val classroomId = joinedClassroom()
         createQuestion(lessonNumber = 1)
         openLesson(classroomId, 1)
 
+        assertThat(summaries().single().watchStudentCount).isZero()
+
+        openingService.finish(LessonOpeningCommand.Change(teacherId, classroomId, 1))
+
         assertThat(summaries().single().watchStudentCount).isEqualTo(1)
+    }
+
+    @Test
+    fun `수업이 여러 개면 수업마다 따로 읽어 차시 제목과 문제 수가 섞이지 않는다`() {
+        val science = joinedClassroom(classNo = 1)
+        val math = createCourse("수학")
+        addLesson(math, "수학 1차시")
+        val mathClassroom =
+            classroomService.create(ClassroomCommand.Create(teacherId, math, 1)).id
+        createQuestion(lessonNumber = 1)
+        createQuestion(lessonNumber = 1, courseId = math)
+        createQuestion(lessonNumber = 1, courseId = math)
+        openLesson(science, 1)
+        openLesson(mathClassroom, 1)
+
+        val byId = summaries().associateBy { it.classroomId }
+
+        assertThat(byId.getValue(science).openLesson?.title).isEqualTo("1차시 내용")
+        assertThat(byId.getValue(science).openLesson?.questionCount).isEqualTo(1)
+        assertThat(byId.getValue(mathClassroom).subjectName).isEqualTo("수학")
+        assertThat(byId.getValue(mathClassroom).openLesson?.title).isEqualTo("수학 1차시")
+        assertThat(byId.getValue(mathClassroom).openLesson?.questionCount).isEqualTo(2)
     }
 
     @Test

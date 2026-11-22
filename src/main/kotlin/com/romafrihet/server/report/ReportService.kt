@@ -197,7 +197,15 @@ class ReportService(
             latestLessonNumber = progress.latestLessonNumber,
             latestQuestionCount = progress.latestQuestionCount,
             latestAverageCorrect = progress.latestAverageCorrect,
-            watchStudentCount = progress.watchStudentCount,
+            // 지금 열려 있는 차시에 아직 답하지 않은 것은 푸는 중이라 살펴볼 일이 아니다. 열자마자 반 전원이 잡히지 않게 뺀다.
+            watchStudentCount =
+            progress.students.count {
+                it.status == StudentProgressStatus.SCORE_DROPPED ||
+                    (
+                        it.status == StudentProgressStatus.NOT_RESPONDED &&
+                            open?.lessonNumber != progress.latestLessonNumber
+                        )
+            },
         )
     }
 
