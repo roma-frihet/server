@@ -22,7 +22,8 @@ class QuestionStatsTeacherController(private val questionStatsService: QuestionS
         summary = "차시 문제별 결과",
         description =
         "반마다 차시 상태, 응답 수, 문제별 정답 수와 보기·주관식 답 분포를 내립니다. " +
-            "classroomIds를 여러 개 주면 반 비교에, 하나만 주면 차시 상세와 수업 중 화면에 씁니다.",
+            "classroomIds를 여러 개 주면 반 비교에, 하나만 주면 차시 상세와 수업 중 화면에 씁니다. " +
+            "이 수업의 반이 아닌 id는 빼고 내리므로, 요청한 반 수보다 항목이 적을 수 있습니다.",
     )
     @GetMapping("/courses/{courseId}/lessons/{lessonNumber}/question-stats")
     fun findQuestionStats(

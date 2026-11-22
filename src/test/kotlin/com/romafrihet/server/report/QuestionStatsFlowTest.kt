@@ -79,6 +79,21 @@ class QuestionStatsFlowTest : TeacherFlowFixture() {
     }
 
     @Test
+    fun `다른 차시의 응답은 응답 수와 분포에 넣지 않는다`() {
+        val classroomId = joinedClassroom()
+        val first = createQuestion(lessonNumber = 1)
+        createQuestion(lessonNumber = 2)
+        openLesson(classroomId, 1)
+        submit(classroomId, studentId, first, correct = true)
+
+        val stats = stats(lessonNumber = 2).single()
+
+        assertThat(stats.studentCount).isEqualTo(1)
+        assertThat(stats.responseCount).isZero()
+        assertThat(stats.questions.single().answeredCount).isZero()
+    }
+
+    @Test
     fun `다른 교사의 수업이나 없는 차시는 404다`() {
         createClassroom()
 
