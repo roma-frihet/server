@@ -368,12 +368,24 @@ const actions={
     const d=await call('teacher','GET',`/api/v1/teacher/classrooms/${classroomId()}/students/${id}`);
     $('studentDetail').innerHTML=`<h3>${esc(d.studentName)} <span class="muted">${esc(d.studentNumber)} · ${d.classNo}반</span></h3>`
       +`<p class="muted">전체 정답 ${d.totalCorrectCount} / ${d.totalQuestionCount}</p>`
-      +`<table><tr><th>차시</th><th>내 점수</th><th>반 평균</th></tr>${d.scores.map(s=>`<tr><td>${s.lessonNumber}차시</td><td>${s.correctCount??'-'} / ${s.questionCount}</td><td>${avg(s.classAverageCorrect)}</td></tr>`).join('')}</table>`
+      +`<table><tr><th>차시</th><th>내 점수</th><th>반 평균</th><th></th></tr>${d.scores.map(s=>`<tr><td>${s.lessonNumber}차시</td><td>${s.correctCount??'-'} / ${s.questionCount}</td><td>${avg(s.classAverageCorrect)}</td><td><button data-act="lessonAnswers" data-id="${id}" data-lesson="${s.lessonNumber}">풀이 보기</button></td></tr>`).join('')}</table><div id="lessonAnswers"></div>`
       +(d.latestAnswers.length
         ?`<h3>${d.latestLessonNumber}차시 문제별 결과</h3><p class="muted">사정이 있으면 결과를 바꿔 주세요. 시작하지 않은 문제는 목록에 없습니다.</p>`
           +`<table><tr><th>문제</th><th>결과</th><th>비고</th><th></th></tr>${d.latestAnswers.map(a=>`<tr><td>${a.questionIndex+1}. ${esc(a.content??'')}</td><td>${RESULT[a.result]} ${a.result}</td><td>${a.isOverridden?'<span class="badge lav">교사 수정</span>':''}${a.byTimeout?'<span class="muted">시간 종료</span>':''}</td><td><select data-act="overrideResult" data-id="${a.attemptAnswerId}">${['RIGHT','WRONG','NONE'].map(r=>`<option value="${r}" ${r===a.result?'selected':''}>${RESULT_LABEL[r]}</option>`).join('')}</select></td></tr>`).join('')}</table>`
         :'<p class="muted">최근 차시에 푼 문제가 없습니다.</p>')
       +`<div class="row" style="margin-top:12px"><button class="danger" data-act="resetPassword" data-id="${id}">비밀번호 초기화</button><span id="tempPw" class="muted"></span></div>`;
+  },
+  // 차시를 골라 학생이 문제마다 고른 보기와 쓴 답을 본다. 시작하지 않은 문제도 나온다
+  async lessonAnswers(el){
+    const d=await call('teacher','GET',`/api/v1/teacher/classrooms/${classroomId()}/students/${el.dataset.id}/lessons/${el.dataset.lesson}/answers`);
+    const LABEL={...RESULT_LABEL,IN_PROGRESS:'푸는 중',NOT_STARTED:'시작 안 함'};
+    const img=u=>u?` <img src="${esc(u)}" alt="" style="max-height:48px;vertical-align:middle">`:'';
+    $('lessonAnswers').innerHTML=`<h3>${d.lessonNumber}차시 ${esc(d.lessonTitle)} ${badge(d.status)} <span class="muted">${d.correctCount} / ${d.questionCount}</span></h3>`
+      +`<table><tr><th>번호</th><th>문제</th><th>학생 답</th><th>정답</th><th>결과</th></tr>${d.answers.map(a=>{
+        const chosen=a.options.find(o=>o.optionId===a.selectedOptionId);
+        const given=a.type==='SHORT_ANSWER'?esc(a.answerText??'-'):(chosen?esc(chosen.content??'(이미지)')+img(chosen.imageUrl):'-');
+        const right=a.type==='SHORT_ANSWER'?a.acceptedAnswers.map(esc).join(', '):a.options.filter(o=>o.isCorrect).map(o=>esc(o.content??'(이미지)')+img(o.imageUrl)).join(', ');
+        return `<tr><td>${a.number}</td><td>${esc(a.content??'')}${img(a.imageUrl)}</td><td>${given}</td><td>${right}</td><td>${LABEL[a.result]??a.result}${a.isOverridden?' <span class="badge lav">교사 수정</span>':''}${a.attemptAnswerId&&a.result!=='IN_PROGRESS'?` <select data-act="overrideResult" data-id="${a.attemptAnswerId}">${['RIGHT','WRONG','NONE'].map(r=>`<option value="${r}" ${r===a.result?'selected':''}>${RESULT_LABEL[r]}</option>`).join('')}</select>`:''}</td></tr>`}).join('')}</table>`;
   },
   async overrideResult(el){
     await call('teacher','PUT',`/api/v1/teacher/attempt-answers/${el.dataset.id}/result`,{result:el.value});
