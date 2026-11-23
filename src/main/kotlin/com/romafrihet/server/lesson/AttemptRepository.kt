@@ -1,5 +1,6 @@
 package com.romafrihet.server.lesson
 
+import com.romafrihet.server.lesson.projection.AnswerResultProjection
 import com.romafrihet.server.lesson.projection.AttemptScoreProjection
 import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Modifying
@@ -12,6 +13,8 @@ interface AttemptRepository :
     fun findByClassroomIdAndLessonNumberAndUserId(classroomId: Long, lessonNumber: Int, userId: UUID): Attempt?
 
     fun findAllByClassroomIdIn(classroomIds: Collection<Long>): List<Attempt>
+
+    fun findAllByClassroomIdInAndLessonNumber(classroomIds: Collection<Long>, lessonNumber: Int): List<Attempt>
 
     fun findAllByClassroomCourseId(courseId: Long): List<Attempt>
 
@@ -46,4 +49,19 @@ interface AttemptRepository :
         """,
     )
     fun findScores(classroomIds: Collection<Long>): List<AttemptScoreProjection>
+
+    /** 성적 내보내기의 정오표와 문제별 정답률에 쓴다. 확정되지 않은 응답은 아직 결과가 아니라 넣지 않는다. */
+    @Query(
+        """
+        select new com.romafrihet.server.lesson.projection.AnswerResultProjection(
+            t.classroom.id, t.userId, a.question.id, a.finalResult
+        )
+        from AttemptAnswer a
+        join a.attempt t
+        where t.classroom.id in :classroomIds
+          and t.lessonNumber = :lessonNumber
+          and a.isFinalized = true
+        """,
+    )
+    fun findResults(classroomIds: Collection<Long>, lessonNumber: Int): List<AnswerResultProjection>
 }

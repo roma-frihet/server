@@ -15,7 +15,9 @@ import com.romafrihet.server.lesson.LessonRepository
 import com.romafrihet.server.lesson.LessonStatus
 import com.romafrihet.server.lesson.dto.LessonScoreQueryDto
 import com.romafrihet.server.report.command.ReportCommand
+import com.romafrihet.server.report.dto.ClassroomOpenLessonDto
 import com.romafrihet.server.report.dto.ClassroomProgressDto
+import com.romafrihet.server.report.dto.ClassroomSummaryDto
 import com.romafrihet.server.report.dto.DashboardClassroomDto
 import com.romafrihet.server.report.dto.DashboardDto
 import com.romafrihet.server.report.dto.DashboardLessonDto
@@ -141,6 +143,70 @@ class ReportService(
                     questionCount = it.questionCount.toInt(),
                 )
             }
+    }
+
+    /**
+     * 학급 관리 홈의 반 카드다. 기록은 수업 단위로 한 번씩 읽어 반 수만큼 조회하지 않는다.
+     * 읽기 전에 시간이 지난 응답을 확정하므로 readOnly가 아니다.
+     */
+    @Transactional
+    fun findClassroomSummaries(command: ReportCommand.ClassroomSummaries): List<ClassroomSummaryDto> {
+        val classrooms = classroomRepository.findAllByCourseUserIdOrderByCourseIdAscClassNoAsc(command.userId)
+        if (classrooms.isEmpty()) return emptyList()
+        val byCourse = classrooms.groupBy { requireNotNull(it.course.id) }
+        val titles =
+            lessonRepository
+                .findAllByCourseIdIn(byCourse.keys)
+                .associate { (requireNotNull(it.course.id) to it.lessonNumber) to it.title }
+        return byCourse.flatMap { (courseId, courseClassrooms) ->
+            val records = classroomRecordsReader.read(courseId, courseClassrooms.map { requireNotNull(it.id) })
+            courseClassrooms.map { toSummary(it, records, titles) }
+        }
+    }
+
+    private fun toSummary(
+        classroom: Classroom,
+        records: ClassroomRecords,
+        titles: Map<Pair<Long, Int>, String>,
+    ): ClassroomSummaryDto {
+        val classroomId = requireNotNull(classroom.id)
+        val courseId = requireNotNull(classroom.course.id)
+        val progress = classroomProgressCalculator.calculate(classroomId, classroom.classNo, records)
+        val openings = records.openings[classroomId].orEmpty()
+        val scores = records.scores[classroomId].orEmpty()
+        val open = openings.firstOrNull { it.isOpen }
+        return ClassroomSummaryDto(
+            classroomId = classroomId,
+            courseId = courseId,
+            grade = classroom.course.grade,
+            subjectName = classroom.course.subject.name,
+            classNo = classroom.classNo,
+            studentCount = progress.studentCount,
+            openLesson =
+            open?.let { opening ->
+                ClassroomOpenLessonDto(
+                    lessonNumber = opening.lessonNumber,
+                    title = titles[courseId to opening.lessonNumber].orEmpty(),
+                    questionCount = records.questionCounts[opening.lessonNumber] ?: 0,
+                    responseCount =
+                    scores.count { (_, byLesson) -> (byLesson[opening.lessonNumber]?.answeredCount ?: 0) > 0 },
+                )
+            },
+            lastFinishedLessonNumber =
+            openings.filter { it.status == LessonStatus.FINISHED }.maxOfOrNull { it.lessonNumber },
+            latestLessonNumber = progress.latestLessonNumber,
+            latestQuestionCount = progress.latestQuestionCount,
+            latestAverageCorrect = progress.latestAverageCorrect,
+            // 지금 열려 있는 차시에 아직 답하지 않은 것은 푸는 중이라 살펴볼 일이 아니다. 열자마자 반 전원이 잡히지 않게 뺀다.
+            watchStudentCount =
+            progress.students.count {
+                it.status == StudentProgressStatus.SCORE_DROPPED ||
+                    (
+                        it.status == StudentProgressStatus.NOT_RESPONDED &&
+                            open?.lessonNumber != progress.latestLessonNumber
+                        )
+            },
+        )
     }
 
     @Transactional

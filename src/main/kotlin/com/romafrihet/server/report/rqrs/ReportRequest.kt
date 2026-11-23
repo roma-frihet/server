@@ -1,14 +1,17 @@
 package com.romafrihet.server.report.rqrs
 
+import com.romafrihet.server.report.ScoreExportSheet
 import com.romafrihet.server.report.command.ReportCommand
 import io.swagger.v3.oas.annotations.media.Schema
 import jakarta.validation.constraints.Max
 import jakarta.validation.constraints.Min
+import jakarta.validation.constraints.NotNull
 import jakarta.validation.constraints.Size
 import java.util.UUID
 
 private const val MAX_PAGE_SIZE = 100L
 private const val DEFAULT_PAGE_SIZE = 20
+private const val MAX_CLASSROOM_COUNT = 20
 
 class ReportRequest private constructor() {
     @Schema(name = "ReportRequestScoreQuery")
@@ -31,6 +34,20 @@ class ReportRequest private constructor() {
         )
     }
 
+    @Schema(name = "ReportRequestQuestionStatsQuery")
+    data class QuestionStatsQuery(
+        @field:Schema(description = "비우면 수업의 모든 반")
+        @field:Size(max = MAX_CLASSROOM_COUNT)
+        val classroomIds: List<Long>? = null,
+    ) {
+        fun toCommand(userId: UUID, courseId: Long, lessonNumber: Int) = ReportCommand.QuestionStats(
+            userId = userId,
+            courseId = courseId,
+            lessonNumber = lessonNumber,
+            classroomIds = classroomIds.orEmpty(),
+        )
+    }
+
     @Schema(name = "ReportRequestStudentQuery")
     data class StudentQuery(
         @field:Size(max = 50)
@@ -40,6 +57,24 @@ class ReportRequest private constructor() {
             userId = userId,
             classroomId = classroomId,
             keyword = keyword?.trim().orEmpty(),
+        )
+    }
+
+    @Schema(name = "ReportRequestScoreExportQuery")
+    data class ScoreExportQuery(
+        @field:Schema(description = "비우면 수업의 모든 반")
+        val classroomId: Long? = null,
+        @field:Schema(description = "QUESTION_RATES, ANSWER_SHEET는 필수")
+        val lessonNumber: Int? = null,
+        @field:NotNull
+        val sheet: ScoreExportSheet? = null,
+    ) {
+        fun toCommand(userId: UUID, courseId: Long) = ReportCommand.ScoreExport(
+            userId = userId,
+            courseId = courseId,
+            classroomId = classroomId,
+            lessonNumber = lessonNumber,
+            sheet = requireNotNull(sheet),
         )
     }
 }

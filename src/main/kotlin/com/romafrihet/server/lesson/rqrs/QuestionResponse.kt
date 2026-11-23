@@ -2,6 +2,7 @@ package com.romafrihet.server.lesson.rqrs
 
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.romafrihet.server.lesson.QuestionType
+import com.romafrihet.server.lesson.dto.QuestionCopyDto
 import com.romafrihet.server.lesson.dto.QuestionDto
 import com.romafrihet.server.lesson.dto.QuestionImageDto
 import com.romafrihet.server.lesson.dto.QuestionOptionDto
@@ -61,6 +62,17 @@ class QuestionResponse private constructor() {
 
     @Schema(name = "QuestionResponseIdResult")
     data class IdResult(val id: Long)
+
+    @Schema(name = "QuestionResponseCopyResult")
+    data class CopyResult(val targetCourseId: Long, val targetLessonNumber: Int, val copiedCount: Int) {
+        companion object {
+            fun of(dto: QuestionCopyDto) = CopyResult(
+                targetCourseId = dto.targetCourseId,
+                targetLessonNumber = dto.targetLessonNumber,
+                copiedCount = dto.copiedCount,
+            )
+        }
+    }
 
     @Schema(name = "QuestionResponseImageResult")
     data class ImageResult(val id: Long, val url: String?) {

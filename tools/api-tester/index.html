@@ -102,6 +102,8 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
     <div id="optionForm"></div>
     <div class="row" style="margin-top:8px"><button data-act="addOption">보기 추가</button><button class="primary" data-act="createQuestion">문제 저장</button></div></div>
   <div class="card"><h2>문제 목록</h2><div id="questions"></div></div>
+  <div class="card"><h2>문제별 결과 <span class="muted">선택한 차시</span></h2><div class="row"><button class="primary" data-act="questionStats" data-scope="picked">선택한 반</button><button data-act="questionStats" data-scope="all">모든 반 비교</button></div><div id="questionStats"></div></div>
+  <div class="card"><h2>차시 복사 <span class="muted">선택한 차시를</span></h2><div class="row"><label>대상 수업 id (비우면 지금 수업)<input id="copyCourse" type="number" style="width:110px"></label><label>대상 차시 (비우면 새 차시)<input id="copyLesson" type="number" min="1" style="width:90px"></label><label>문제 id (쉼표, 비우면 전체)<input id="copyQuestions" style="width:160px"></label><button class="primary" data-act="copyLesson">복사</button></div><div id="copyResult" class="muted"></div></div>
 </section>
 
 <section id="member">
@@ -127,9 +129,10 @@ aside{position:sticky;top:64px;max-height:calc(100vh - 80px);display:flex;flex-d
 </section>
 
 <section id="report">
+  <div class="card"><h2>학급 관리 반 목록</h2><div class="row"><button class="primary" data-act="classroomSummaries">내 모든 반 불러오기</button></div><div id="classroomSummaries"></div></div>
   <div class="card"><h2>대시보드</h2><div class="row"><button class="primary" data-act="dashboard">선택한 수업 불러오기</button></div><div id="dashboard"></div></div>
   <div class="card"><h2>학생 관리</h2><div class="row"><label>이름 검색<input id="studentKeyword"></label><button class="primary" data-act="students">선택한 반 불러오기</button></div><div id="students"></div></div>
-  <div class="card"><h2>학생 점수 조회</h2><div class="row"><label><span>반</span><select id="scoreClassroom"><option value="">전체 반</option><option value="picked">선택한 반</option></select></label><label>차시 (비우면 전체)<input id="scoreLesson" type="number" min="1" style="width:90px"></label><label>페이지 크기<input id="scoreSize" type="number" value="20" min="1" max="100" style="width:80px"></label><button class="primary" data-act="scores" data-page="0">조회</button></div><div id="scores"></div></div>
+  <div class="card"><h2>학생 점수 조회</h2><div class="row"><label><span>반</span><select id="scoreClassroom"><option value="">전체 반</option><option value="picked">선택한 반</option></select></label><label>차시 (비우면 전체)<input id="scoreLesson" type="number" min="1" style="width:90px"></label><label>페이지 크기<input id="scoreSize" type="number" value="20" min="1" max="100" style="width:80px"></label><button class="primary" data-act="scores" data-page="0">조회</button><label>내보내기<select id="exportSheet"><option value="STUDENT_SCORES">학생별 차시 점수</option><option value="QUESTION_RATES">문제별 정답률 (차시 필요)</option><option value="ANSWER_SHEET">학생별 정오표 (차시 필요)</option></select></label><button data-act="exportScores">CSV 내려받기</button></div><div id="scores"></div></div>
   <div class="card"><h2>마이페이지</h2><div class="row"><button class="primary" data-act="mypage">불러오기</button></div><div id="mypage"></div></div>
 </section>
 </main>
@@ -181,6 +184,13 @@ function answerBody(){
     :{optionId:+(document.querySelector('input[name=cur]:checked')?.value||0)||null};
 }
 const badge=s=>`<span class="badge ${esc(s)}">${esc({PLANNED:'예정',OPEN:'열림',CLOSED:'닫힘',FINISHED:'마감',NORMAL:'정상',SCORE_DROPPED:'점수 하락',NOT_RESPONDED:'미응답'}[s]||s)}</span>`;
+const hm=iso=>new Date(iso).toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+function todayAt(value){
+  if(!value)return null;
+  const[h,m]=value.split(':').map(Number),d=new Date();d.setHours(h,m||0,0,0);
+  const p=n=>String(Math.abs(n)).padStart(2,'0'),o=-d.getTimezoneOffset();
+  return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(h)}:${p(m||0)}:00${o>=0?'+':'-'}${p(Math.trunc(o/60))}:${p(o%60)}`;
+}
 function exp(token){try{return new Date(JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))).exp*1000)}catch(e){return null}}
 function refresh(){
   for(const r of ['teacher','student']){
@@ -243,13 +253,45 @@ const actions={
   async createLesson(){const d=await call('teacher','POST',`/api/v1/teacher/courses/${courseId()}/lessons`,{title:$('lessonTitle').value});S.lessonNumber=d.lessonNumber;await actions.loadLessons()},
   async loadLessons(){
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/lessons`);
-    $('lessons').innerHTML=`<table><tr><th></th><th>차시</th><th>문제</th><th>반별 상태</th><th>선택한 반 동작</th></tr>${d.map(l=>`<tr><td><input type="radio" name="lesson" data-act="pickLesson" data-id="${l.lessonNumber}" ${l.lessonNumber===S.lessonNumber?'checked':''}></td><td>${l.lessonNumber}. ${esc(l.title)} <button data-act="renameLesson" data-id="${l.lessonNumber}">이름 수정</button> <button class="danger" data-act="deleteLesson" data-id="${l.lessonNumber}">삭제</button></td><td>${l.questionCount}</td><td>${l.classrooms.map(c=>c.classNo+'반 '+badge(c.status)).join(' ')||'-'}</td><td>${['open:열기','close:닫기','finish:마감'].map(x=>{const[a,t]=x.split(':');return `<button data-act="lessonState" data-state="${a}" data-id="${l.lessonNumber}" ${a==='finish'?'class="danger"':''}>${t}</button>`}).join(' ')}</td></tr>`).join('')}</table>`;
+    $('lessons').innerHTML=`<table><tr><th></th><th>차시</th><th>문제</th><th>반별 상태</th><th>선택한 반 동작</th></tr>${d.map(l=>`<tr><td><input type="radio" name="lesson" data-act="pickLesson" data-id="${l.lessonNumber}" ${l.lessonNumber===S.lessonNumber?'checked':''}></td><td>${l.lessonNumber}. ${esc(l.title)} <button data-act="renameLesson" data-id="${l.lessonNumber}">이름 수정</button> <button class="danger" data-act="deleteLesson" data-id="${l.lessonNumber}">삭제</button></td><td>${l.questionCount}</td><td>${l.classrooms.map(c=>c.classNo+'반 '+badge(c.status)+(c.scheduledOpenAt?` <span class="muted">${hm(c.scheduledOpenAt)} 열기</span>`:'')+(c.scheduledFinishAt?` <span class="muted">${hm(c.scheduledFinishAt)} 마감</span>`:'')).join(' ')||'-'}</td><td>${['open:열기','close:닫기','finish:마감'].map(x=>{const[a,t]=x.split(':');return `<button data-act="lessonState" data-state="${a}" data-id="${l.lessonNumber}" ${a==='finish'?'class="danger"':''}>${t}</button>`}).join(' ')} <button data-act="scheduleLesson" data-id="${l.lessonNumber}">예약</button> <button data-act="cancelSchedule" data-id="${l.lessonNumber}">예약 취소</button></td></tr>`).join('')}</table>`;
     refresh();if(S.lessonNumber)await actions.loadQuestions();
   },
+  async copyLesson(){
+    const n=need(S.lessonNumber,'차시를 먼저 선택하세요.');
+    const ids=$('copyQuestions').value.split(',').map(v=>v.trim()).filter(Boolean).map(Number);
+    const d=await call('teacher','POST',`/api/v1/teacher/courses/${courseId()}/lessons/${n}/copy`,{targetCourseId:+$('copyCourse').value||+courseId(),targetLessonNumber:+$('copyLesson').value||null,questionIds:ids.length?ids:null});
+    $('copyResult').textContent=`수업 ${d.targetCourseId}의 ${d.targetLessonNumber}차시로 ${d.copiedCount}문제를 복사했습니다.`;
+    await actions.loadLessons();
+  },
   async pickLesson(el){S.lessonNumber=+el.dataset.id;refresh();await actions.loadQuestions()},
+  // 같은 답(공백·대소문자 무시)을 쓴 학생을 한 번에 인정하거나 취소한다
+  async acceptAnswer(el){
+    const d=await call('teacher','POST',`/api/v1/teacher/classrooms/${el.dataset.classroom}/lessons/${S.lessonNumber}/questions/${el.dataset.q}/answer-overrides`,{answerText:el.dataset.text,result:el.dataset.result});
+    log('화면','',null,200,`${d.changedCount}명의 결과를 바꿨습니다.`);
+    await actions.questionStats({dataset:{scope:S.statsScope||'picked'}});
+  },
+  async questionStats(el){
+    const n=need(S.lessonNumber,'차시를 먼저 선택하세요.');
+    S.statsScope=el.dataset.scope;
+    const q=el.dataset.scope==='picked'?`?classroomIds=${classroomId()}`:'';
+    const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/lessons/${n}/question-stats${q}`);
+    const pct=(a,b)=>b?Math.round(a*100/b)+'%':'-';
+    $('questionStats').innerHTML=d.map(c=>`<h3>${c.classNo}반 ${badge(c.status)} <span class="muted">응답 ${c.responseCount} / ${c.studentCount}명</span></h3>`
+      +`<table><tr><th>문제</th><th>정답률</th><th>분포</th></tr>${c.questions.map((x,i)=>`<tr><td>${i+1}. ${esc(x.content??'(이미지)')}</td><td>${pct(x.rightCount,x.answeredCount)} <span class="muted">${x.rightCount}/${x.answeredCount}, 미응답 ${x.noAnswerCount}</span></td><td>${x.type==='MULTIPLE_CHOICE'
+        ?x.options.map(o=>`${o.isCorrect?'✔':''}${esc(o.content??'(이미지)')} ${o.count}`).join(' · ')
+        :`<span class="muted">인정: ${x.acceptedAnswers.map(esc).join(', ')}</span><br>${x.answerTexts.map(t=>`${esc(t.answerText)} ${t.count}명${t.rightCount?` (정답 ${t.rightCount})`:''} <button data-act="acceptAnswer" data-classroom="${c.classroomId}" data-q="${x.questionId}" data-text="${esc(t.answerText)}" data-result="${t.rightCount<t.count?'RIGHT':'WRONG'}">${t.rightCount<t.count?'모두 인정':'인정 취소'}</button>`).join(' · ')||'-'}`}</td></tr>`).join('')}</table>`).join('')||'<p class="muted">반이 없습니다.</p>';
+  },
   async deleteLesson(el){if(!confirm(el.dataset.id+'차시와 그 문제를 지웁니다.'))return;await call('teacher','DELETE',`/api/v1/teacher/courses/${courseId()}/lessons/${el.dataset.id}`);if(S.lessonNumber===+el.dataset.id)S.lessonNumber=null;await actions.loadLessons()},
   async renameLesson(el){const title=prompt('새 차시 이름');if(title){await call('teacher','PATCH',`/api/v1/teacher/courses/${courseId()}/lessons/${el.dataset.id}`,{title});await actions.loadLessons()}},
   async lessonState(el){await call('teacher','POST',`/api/v1/teacher/classrooms/${classroomId()}/lessons/${el.dataset.id}/${el.dataset.state}`);await actions.loadLessons()},
+  // 오늘 날짜에 시:분을 붙이고 브라우저 시간대를 넣어 보낸다. 서버 시계가 UTC라 시간대가 없으면 9시간 어긋난다.
+  async scheduleLesson(el){
+    const open=prompt('열 시각 (HH:MM, 오늘). 이미 열린 차시면 비워 두세요.','');if(open===null)return;
+    const finish=prompt('자동 마감 시각 (HH:MM, 오늘). 없으면 비워 두세요.','');if(finish===null)return;
+    await call('teacher','PUT',`/api/v1/teacher/classrooms/${classroomId()}/lessons/${el.dataset.id}/schedule`,{openAt:todayAt(open),finishAt:todayAt(finish)});
+    await actions.loadLessons();
+  },
+  async cancelSchedule(el){await call('teacher','DELETE',`/api/v1/teacher/classrooms/${classroomId()}/lessons/${el.dataset.id}/schedule`);await actions.loadLessons()},
   addOption(){S.options.push({text:'',correct:false});renderOptions()},
   async createQuestion(){
     const n=need(S.lessonNumber,'차시를 먼저 선택하세요.');const type=$('qType').value;let options;
@@ -326,6 +368,11 @@ const actions={
     const d=await call('student','GET',`/api/v1/classrooms/${classroomId()}/report/wrong-questions`);
     $('myReport').innerHTML=d.length?`<h3>틀린 문제 ${d.length}개</h3>${wrongList(d)}`:'<p class="muted">마감한 차시에서 틀린 문제가 없어요.</p>';
   },
+  async classroomSummaries(){
+    const d=await call('teacher','GET','/api/v1/teacher/classrooms/summaries');
+    const avg=v=>v==null?'-':(+v).toFixed(1);
+    $('classroomSummaries').innerHTML=d.length?`<table><tr><th>반</th><th>학생</th><th>지금 열린 차시</th><th>마지막 마감</th><th>최근 평균</th><th>살펴볼 학생</th></tr>${d.map(c=>`<tr><td>${c.grade}학년 ${esc(c.subjectName)} ${c.classNo}반</td><td>${c.studentCount}명</td><td>${c.openLesson?`${c.openLesson.lessonNumber}. ${esc(c.openLesson.title)} <span class="muted">응답 ${c.openLesson.responseCount} / ${c.studentCount}</span>`:'-'}</td><td>${c.lastFinishedLessonNumber?c.lastFinishedLessonNumber+'차시':'-'}</td><td>${avg(c.latestAverageCorrect)} / ${c.latestQuestionCount}</td><td>${c.watchStudentCount}명</td></tr>`).join('')}</table>`:'<p class="muted">반이 없습니다.</p>';
+  },
   async dashboard(){
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/dashboard`);
     const avg=v=>v==null?'-':(+v).toFixed(1),done=Object.values(d.setup).filter(Boolean).length;
@@ -344,12 +391,24 @@ const actions={
     const d=await call('teacher','GET',`/api/v1/teacher/classrooms/${classroomId()}/students/${id}`);
     $('studentDetail').innerHTML=`<h3>${esc(d.studentName)} <span class="muted">${esc(d.studentNumber)} · ${d.classNo}반</span></h3>`
       +`<p class="muted">전체 정답 ${d.totalCorrectCount} / ${d.totalQuestionCount}</p>`
-      +`<table><tr><th>차시</th><th>내 점수</th><th>반 평균</th></tr>${d.scores.map(s=>`<tr><td>${s.lessonNumber}차시</td><td>${s.correctCount??'-'} / ${s.questionCount}</td><td>${avg(s.classAverageCorrect)}</td></tr>`).join('')}</table>`
+      +`<table><tr><th>차시</th><th>내 점수</th><th>반 평균</th><th></th></tr>${d.scores.map(s=>`<tr><td>${s.lessonNumber}차시</td><td>${s.correctCount??'-'} / ${s.questionCount}</td><td>${avg(s.classAverageCorrect)}</td><td><button data-act="lessonAnswers" data-id="${id}" data-lesson="${s.lessonNumber}">풀이 보기</button></td></tr>`).join('')}</table><div id="lessonAnswers"></div>`
       +(d.latestAnswers.length
         ?`<h3>${d.latestLessonNumber}차시 문제별 결과</h3><p class="muted">사정이 있으면 결과를 바꿔 주세요. 시작하지 않은 문제는 목록에 없습니다.</p>`
           +`<table><tr><th>문제</th><th>결과</th><th>비고</th><th></th></tr>${d.latestAnswers.map(a=>`<tr><td>${a.questionIndex+1}. ${esc(a.content??'')}</td><td>${RESULT[a.result]} ${a.result}</td><td>${a.isOverridden?'<span class="badge lav">교사 수정</span>':''}${a.byTimeout?'<span class="muted">시간 종료</span>':''}</td><td><select data-act="overrideResult" data-id="${a.attemptAnswerId}">${['RIGHT','WRONG','NONE'].map(r=>`<option value="${r}" ${r===a.result?'selected':''}>${RESULT_LABEL[r]}</option>`).join('')}</select></td></tr>`).join('')}</table>`
         :'<p class="muted">최근 차시에 푼 문제가 없습니다.</p>')
       +`<div class="row" style="margin-top:12px"><button class="danger" data-act="resetPassword" data-id="${id}">비밀번호 초기화</button><span id="tempPw" class="muted"></span></div>`;
+  },
+  // 차시를 골라 학생이 문제마다 고른 보기와 쓴 답을 본다. 시작하지 않은 문제도 나온다
+  async lessonAnswers(el){
+    const d=await call('teacher','GET',`/api/v1/teacher/classrooms/${classroomId()}/students/${el.dataset.id}/lessons/${el.dataset.lesson}/answers`);
+    const LABEL={...RESULT_LABEL,IN_PROGRESS:'푸는 중',NOT_STARTED:'시작 안 함'};
+    const img=u=>u?` <img src="${esc(u)}" alt="" style="max-height:48px;vertical-align:middle">`:'';
+    $('lessonAnswers').innerHTML=`<h3>${d.lessonNumber}차시 ${esc(d.lessonTitle)} ${badge(d.status)} <span class="muted">${d.correctCount} / ${d.questionCount}</span></h3>`
+      +`<table><tr><th>번호</th><th>문제</th><th>학생 답</th><th>정답</th><th>결과</th></tr>${d.answers.map(a=>{
+        const chosen=a.options.find(o=>o.optionId===a.selectedOptionId);
+        const given=a.type==='SHORT_ANSWER'?esc(a.answerText??'-'):(chosen?esc(chosen.content??'(이미지)')+img(chosen.imageUrl):'-');
+        const right=a.type==='SHORT_ANSWER'?a.acceptedAnswers.map(esc).join(', '):a.options.filter(o=>o.isCorrect).map(o=>esc(o.content??'(이미지)')+img(o.imageUrl)).join(', ');
+        return `<tr><td>${a.number}</td><td>${esc(a.content??'')}${img(a.imageUrl)}</td><td>${given}</td><td>${right}</td><td>${LABEL[a.result]??a.result}${a.isOverridden?' <span class="badge lav">교사 수정</span>':''}${a.attemptAnswerId&&a.result!=='IN_PROGRESS'?` <select data-act="overrideResult" data-id="${a.attemptAnswerId}">${['RIGHT','WRONG','NONE'].map(r=>`<option value="${r}" ${r===a.result?'selected':''}>${RESULT_LABEL[r]}</option>`).join('')}</select>`:''}</td></tr>`}).join('')}</table>`;
   },
   async overrideResult(el){
     await call('teacher','PUT',`/api/v1/teacher/attempt-answers/${el.dataset.id}/result`,{result:el.value});
@@ -369,6 +428,18 @@ const actions={
     if($('scoreLesson').value)p.set('lessonNumber',$('scoreLesson').value);
     const d=await call('teacher','GET',`/api/v1/teacher/courses/${courseId()}/scores?${p}`),i=d.pageInfo;
     $('scores').innerHTML=`<table><tr><th>반</th><th>학번</th><th>이름</th><th>차시</th><th>점수</th></tr>${d.content.map(s=>`<tr><td>${s.classNo}반</td><td>${esc(s.studentNumber)}</td><td>${esc(s.studentName)}</td><td>${s.lessonNumber}</td><td>${s.correctCount==null?badge('NOT_RESPONDED'):`${s.correctCount} / ${s.questionCount}`}</td></tr>`).join('')}</table><div class="row" style="margin-top:8px"><button data-act="scores" data-page="${i.page-1}" ${i.page?'':'disabled'}>이전</button><span class="muted">${i.page+1} / ${Math.max(i.totalPages,1)}쪽, 총 ${i.totalElements}건</span><button data-act="scores" data-page="${i.page+1}" ${i.hasNext?'':'disabled'}>다음</button></div>`;
+  },
+  // JSON이 아니라 파일이라 call 대신 fetch로 받는다. 파일 이름은 Content-Disposition의 filename*에 있다
+  async exportScores(){
+    const p=new URLSearchParams({sheet:$('exportSheet').value});
+    if($('scoreClassroom').value==='picked')p.set('classroomId',classroomId());
+    if($('scoreLesson').value)p.set('lessonNumber',$('scoreLesson').value);
+    const path=`/api/v1/teacher/courses/${courseId()}/scores/export?${p}`;
+    const res=await fetch(path,{headers:{Authorization:'Bearer '+S.teacher}});
+    log('GET',path,'teacher',res.status,res.ok?'(CSV 파일)':await res.text());
+    if(!res.ok)return;
+    const name=decodeURIComponent((res.headers.get('Content-Disposition')||'').match(/filename\*=UTF-8''([^;]+)/)?.[1]||'scores.csv');
+    const a=document.createElement('a');a.href=URL.createObjectURL(await res.blob());a.download=name;a.click();URL.revokeObjectURL(a.href);
   },
   async mypage(){
     const d=await call('teacher','GET','/api/v1/teacher/mypage');

@@ -19,10 +19,16 @@ class LessonStudentService(
     private val questionRepository: QuestionRepository,
     private val questionImageUrlResolver: QuestionImageUrlResolver,
     private val lessonRepository: LessonRepository,
+    private val lessonScheduleApplier: LessonScheduleApplier,
 ) {
-    /** 닫은 차시는 학생에게 보이지 않는다. */
+    /**
+     * 닫은 차시는 학생에게 보이지 않는다.
+     * 열기 예약은 학생이 이 목록을 읽을 때 반영되는 경우가 많으므로, 읽기 전에 적용한다. 그래서 readOnly가 아니다.
+     */
+    @Transactional
     fun findOpenedLessons(userId: UUID, classroomId: Long): List<OpenedLessonDto> {
         validateApproved(userId, classroomId)
+        lessonScheduleApplier.applyDue(listOf(classroomId))
         val classroom = getClassroom(classroomId)
         val titles =
             lessonRepository

@@ -6,6 +6,7 @@ import com.romafrihet.server.lesson.AttemptFinalizer
 import com.romafrihet.server.lesson.AttemptRepository
 import com.romafrihet.server.lesson.LessonOpening
 import com.romafrihet.server.lesson.LessonOpeningRepository
+import com.romafrihet.server.lesson.LessonScheduleApplier
 import com.romafrihet.server.lesson.QuestionRepository
 import com.romafrihet.server.lesson.projection.AttemptScoreProjection
 import org.springframework.stereotype.Component
@@ -26,6 +27,7 @@ class ClassroomRecordsReader(
     private val attemptRepository: AttemptRepository,
     private val attemptFinalizer: AttemptFinalizer,
     private val questionRepository: QuestionRepository,
+    private val lessonScheduleApplier: LessonScheduleApplier,
 ) {
     /** 격자까지 읽을 필요 없이 확정만 할 때 쓴다. 쓰기이므로 호출 측 트랜잭션은 readOnly가 아니어야 한다. */
     fun finalizeExpired(courseId: Long) {
@@ -36,6 +38,7 @@ class ClassroomRecordsReader(
     }
 
     fun read(courseId: Long, classroomIds: List<Long>): ClassroomRecords {
+        lessonScheduleApplier.applyDue(classroomIds)
         val questionCounts = questionCounts(courseId)
         // 학생이 돌아오지 않아도 점수가 맞도록, 세기 전에 시간이 지난 응답부터 확정한다.
         attemptFinalizer.finalizeExpired(attemptRepository.findAllByClassroomIdIn(classroomIds), questionCounts)
