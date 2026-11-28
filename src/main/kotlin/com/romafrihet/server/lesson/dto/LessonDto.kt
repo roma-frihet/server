@@ -8,6 +8,8 @@ data class LessonDto(
     val lessonNumber: Int,
     val title: String,
     val questionCount: Long,
+    /** 이 수업의 모든 반을 합쳐 이 차시를 푼 적이 있는 학생 수다. */
+    val attemptedStudentCount: Long,
     val classrooms: List<LessonClassroomStatusDto>,
 )
 

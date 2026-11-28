@@ -33,6 +33,8 @@ class LessonResponse private constructor() {
         val lessonNumber: Int,
         val title: String,
         val questionCount: Long,
+        @field:Schema(description = "이 수업의 모든 반을 합쳐 이 차시를 푼 적이 있는 학생 수. 지우면 점수가 바뀌는 인원이다")
+        val attemptedStudentCount: Long,
         val classrooms: List<ClassroomStatus>,
     ) {
         companion object {
@@ -40,6 +42,7 @@ class LessonResponse private constructor() {
                 lessonNumber = dto.lessonNumber,
                 title = dto.title,
                 questionCount = dto.questionCount,
+                attemptedStudentCount = dto.attemptedStudentCount,
                 classrooms = dto.classrooms.map(ClassroomStatus::of),
             )
         }

@@ -80,10 +80,11 @@ class TeacherDeleteFlowTest : TeacherFlowFixture() {
     }
 
     @Test
-    fun `연 적만 있고 푼 사람이 없으면 문제를 지울 수 있다`() {
+    fun `연 적만 있고 푼 사람이 없으면 닫은 뒤에 문제를 지울 수 있다`() {
         val classroomId = joinedClassroom()
         val question = createQuestion(lessonNumber = 1)
         openLesson(classroomId, 1)
+        closeLesson(classroomId, 1)
 
         questionService.delete(QuestionCommand.Delete(teacherId, question))
 
@@ -91,18 +92,48 @@ class TeacherDeleteFlowTest : TeacherFlowFixture() {
     }
 
     @Test
-    fun `푼 사람이 있으면 문제와 차시를 지우지 못한다`() {
+    fun `지금 열려 있으면 문제와 차시를 지우지 못한다`() {
+        val classroomId = joinedClassroom()
+        val question = createQuestion(lessonNumber = 1)
+        openLesson(classroomId, 1)
+
+        assertErrorCode(ErrorCode.LESSON_OPEN_NOW) {
+            questionService.delete(QuestionCommand.Delete(teacherId, question))
+        }
+        assertErrorCode(ErrorCode.LESSON_OPEN_NOW) {
+            lessonService.delete(LessonCommand.Delete(teacherId, courseId, 1))
+        }
+    }
+
+    @Test
+    fun `푼 사람이 있어도 닫은 뒤에는 문제를 지우고 응답도 함께 사라진다`() {
         val classroomId = joinedClassroom()
         val question = createQuestion(lessonNumber = 1)
         openLesson(classroomId, 1)
         submit(classroomId, studentId, question, correct = true)
+        closeLesson(classroomId, 1)
 
-        assertErrorCode(ErrorCode.LESSON_HAS_ATTEMPTS) {
-            questionService.delete(QuestionCommand.Delete(teacherId, question))
-        }
-        assertErrorCode(ErrorCode.LESSON_HAS_ATTEMPTS) {
-            lessonService.delete(LessonCommand.Delete(teacherId, courseId, 1))
-        }
+        questionService.delete(QuestionCommand.Delete(teacherId, question))
+
+        assertThat(questionRepository.findById(question)).isEmpty
+        assertThat(attemptAnswerRepository.findAll().filter { it.question.id == question }).isEmpty()
+    }
+
+    @Test
+    fun `푼 사람이 있어도 닫은 뒤에는 차시를 기록째 지운다`() {
+        val classroomId = joinedClassroom()
+        val question = createQuestion(lessonNumber = 1)
+        openLesson(classroomId, 1)
+        submit(classroomId, studentId, question, correct = true)
+        closeLesson(classroomId, 1)
+        val attemptId =
+            requireNotNull(attemptRepository.findByClassroomIdAndLessonNumberAndUserId(classroomId, 1, studentId)?.id)
+
+        lessonService.delete(LessonCommand.Delete(teacherId, courseId, 1))
+
+        assertThat(questionRepository.findById(question)).isEmpty
+        assertThat(attemptRepository.findAllByClassroomCourseId(courseId).filter { it.lessonNumber == 1 }).isEmpty()
+        assertThat(attemptAnswerRepository.findAllByAttemptIdOrderByQuestionIndexAsc(attemptId)).isEmpty()
     }
 
     @Test
@@ -111,6 +142,7 @@ class TeacherDeleteFlowTest : TeacherFlowFixture() {
         val first = createQuestion(lessonNumber = 1)
         val second = createQuestion(lessonNumber = 2)
         openLesson(classroomId, 1)
+        closeLesson(classroomId, 1)
 
         lessonService.delete(LessonCommand.Delete(teacherId, courseId, 1))
 

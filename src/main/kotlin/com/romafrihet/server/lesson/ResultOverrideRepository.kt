@@ -33,4 +33,16 @@ interface ResultOverrideRepository : JpaRepository<ResultOverride, Long> {
         """,
     )
     fun deleteAllByCourseIdAndLessonNumber(courseId: Long, lessonNumber: Int)
+
+    /** 문제 하나를 지울 때 그 문제 응답의 재채점 이력을 먼저 치운다. */
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query(
+        """
+        delete from ResultOverride r
+        where r.attemptAnswer.id in (
+            select a.id from AttemptAnswer a where a.question.id = :questionId
+        )
+        """,
+    )
+    fun deleteAllByQuestionId(questionId: Long)
 }
