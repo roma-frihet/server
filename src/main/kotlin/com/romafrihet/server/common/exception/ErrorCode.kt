@@ -17,11 +17,11 @@ import org.springframework.http.HttpStatus
  */
 enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: String) {
     // Common
-    INVALID_VALUE(HttpStatus.BAD_REQUEST, "C001", "잘못된 값이 입력되었습니다."),
+    INVALID_VALUE(HttpStatus.BAD_REQUEST, "C001", "입력한 값을 다시 확인해 주세요."),
     NOT_FOUND(HttpStatus.NOT_FOUND, "C002", "해당 데이터를 찾을 수 없습니다."),
-    INVALID_REQUEST_BODY(HttpStatus.BAD_REQUEST, "C003", "요청 본문을 읽을 수 없습니다."),
-    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "C004", "지원하지 않는 HTTP 메서드입니다."),
-    FILE_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "C005", "파일 용량이 너무 큽니다."),
+    INVALID_REQUEST_BODY(HttpStatus.BAD_REQUEST, "C003", "요청을 읽을 수 없습니다. 입력을 다시 확인해 주세요."),
+    METHOD_NOT_ALLOWED(HttpStatus.METHOD_NOT_ALLOWED, "C004", "처리할 수 없는 요청입니다."),
+    FILE_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE, "C005", "파일은 5MB까지 올릴 수 있습니다."),
     INTERNAL_SERVER_ERROR(HttpStatus.INTERNAL_SERVER_ERROR, "C999", "일시적인 오류가 발생했습니다."),
 
     // Auth
@@ -32,9 +32,9 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
 
     // Classroom
     CLASSROOM_DUPLICATED(HttpStatus.CONFLICT, "CL001", "같은 번호의 반이 이미 있습니다."),
-    JOIN_CODE_INVALID(HttpStatus.BAD_REQUEST, "CL002", "합류 코드가 없거나 만료되었습니다."),
+    JOIN_CODE_INVALID(HttpStatus.BAD_REQUEST, "CL002", "없는 수업 코드입니다. 선생님께 다시 받아 주세요."),
     ALREADY_ENROLLED(HttpStatus.CONFLICT, "CL003", "이미 연결된 수업입니다."),
-    JOIN_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "CL005", "시간이 지난 합류 코드입니다."),
+    JOIN_CODE_EXPIRED(HttpStatus.BAD_REQUEST, "CL005", "시간이 지난 수업 코드입니다. 선생님께 다시 받아 주세요."),
 
     // Course
     COURSE_DUPLICATED(HttpStatus.CONFLICT, "CO001", "같은 학년과 과목의 수업이 이미 있습니다."),
@@ -43,14 +43,14 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     LESSON_ALREADY_OPEN(HttpStatus.CONFLICT, "LS001", "이 반에 이미 열린 차시가 있습니다."),
     LESSON_NOT_OPEN(HttpStatus.CONFLICT, "LS002", "열려 있는 차시가 아닙니다."),
     LESSON_HAS_NO_QUESTIONS(HttpStatus.CONFLICT, "LS003", "문제가 없는 차시는 열 수 없습니다."),
-    LESSON_LOCKED_BY_OPENING(HttpStatus.CONFLICT, "LS004", "이미 연 차시에는 문제를 더할 수 없습니다."),
+    LESSON_LOCKED_BY_OPENING(HttpStatus.CONFLICT, "LS004", "이미 연 차시에는 문제를 더할 수 없습니다. 다음 차시에 넣어 주세요."),
     QUESTION_CONTENT_REQUIRED(HttpStatus.BAD_REQUEST, "LS005", "문제 글이나 이미지가 필요합니다."),
     QUESTION_OPTIONS_INVALID(HttpStatus.BAD_REQUEST, "LS006", "보기 또는 정답 구성이 올바르지 않습니다."),
     QUESTION_IMAGE_NOT_USABLE(HttpStatus.BAD_REQUEST, "LS007", "사용할 수 없는 이미지입니다."),
     QUESTION_IMAGE_INVALID(HttpStatus.BAD_REQUEST, "LS008", "PNG, JPEG, WebP 이미지만 올릴 수 있습니다."),
     LESSON_FINISHED(HttpStatus.CONFLICT, "LS009", "마감한 차시입니다."),
-    SUBMISSION_ANSWER_INVALID(HttpStatus.BAD_REQUEST, "LS011", "이 차시의 문제나 보기가 아닌 답안입니다."),
-    QUESTION_LOCKED_BY_SUBMISSION(HttpStatus.CONFLICT, "LS012", "제출이 있는 문제는 글과 해설만 고칠 수 있습니다."),
+    SUBMISSION_ANSWER_INVALID(HttpStatus.BAD_REQUEST, "LS011", "이 차시의 문제나 보기가 아닌 답입니다."),
+    QUESTION_LOCKED_BY_SUBMISSION(HttpStatus.CONFLICT, "LS012", "푼 학생이 있는 문제는 글과 해설만 고칠 수 있습니다."),
     ATTEMPT_OUT_OF_ORDER(HttpStatus.CONFLICT, "LS013", "앞 문제부터 순서대로 풀어야 합니다."),
     ATTEMPT_NOT_IN_QUESTION(HttpStatus.CONFLICT, "LS014", "시작하지 않은 문제입니다."),
     ATTEMPT_TIME_OVER(HttpStatus.CONFLICT, "LS015", "제한 시간이 지난 문제입니다."),
