@@ -17,7 +17,11 @@ spring:
     username: ${DB_USERNAME}
     password: ${DB_PASSWORD}
     hikari:
-      maximum-pool-size: 10
+      # Supabase Session pooler의 pool_size(15)를 Cloud Run 인스턴스들이 나눠 쓴다.
+      # max-instances(2) × 이 값이 15를 넘으면 마이그레이션과 관리 쿼리가 접속을 못 한다.
+      maximum-pool-size: 5
+      # 기본값은 maximum-pool-size와 같아서, 유휴 인스턴스가 커넥션을 쥔 채로 남는다.
+      minimum-idle: 1
 
   jpa:
     open-in-view: false
