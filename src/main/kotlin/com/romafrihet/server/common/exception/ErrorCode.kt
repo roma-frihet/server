@@ -7,6 +7,7 @@ import org.springframework.http.HttpStatus
  *
  * | 접두어 | 도메인 |
  * |---|---|
+ * | AD | 관리자 |
  * | C  | 공통 |
  * | AU | 인증/인가 |
  * | CL | 반/학생 합류 |
@@ -14,6 +15,7 @@ import org.springframework.http.HttpStatus
  * | LS | 차시/문제 |
  * | SP | 학생 가입 정보 |
  * | ST | 파일 저장소 |
+ * | TA | 교사 가입 신청 |
  */
 enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: String) {
     // Common
@@ -74,4 +76,14 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
 
     // Storage
     STORAGE_UNAVAILABLE(HttpStatus.BAD_GATEWAY, "ST001", "파일 저장소를 사용할 수 없습니다."),
+
+    // Teacher application
+    TEACHER_APPLICATION_CLOSED(HttpStatus.CONFLICT, "TA001", "이미 처리된 계정입니다. 관리자에게 문의해 주세요."),
+    TEACHER_APPLICATION_NOT_PENDING(HttpStatus.CONFLICT, "TA002", "이 상태의 신청은 처리할 수 없습니다."),
+    TEACHER_APPLICATION_EMAIL_NOT_CONFIRMED(HttpStatus.CONFLICT, "TA003", "이메일 인증을 마치지 않은 신청입니다."),
+    TEACHER_APPLICATION_STUDENT_ACCOUNT(HttpStatus.BAD_REQUEST, "TA004", "학생 계정으로는 교사 가입을 신청할 수 없습니다."),
+    TEACHER_APPLICATION_EMAIL_REQUIRED(HttpStatus.BAD_REQUEST, "TA005", "이메일로 가입한 계정만 신청할 수 있습니다."),
+
+    // Admin
+    ADMIN_SELF_ACTION(HttpStatus.BAD_REQUEST, "AD001", "자기 계정에는 할 수 없는 작업입니다."),
 }

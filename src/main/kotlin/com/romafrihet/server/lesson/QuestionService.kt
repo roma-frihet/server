@@ -94,15 +94,25 @@ class QuestionService(
      */
     @Transactional
     fun delete(command: QuestionCommand.Delete) {
-        val question = questionRepository.getOwned(command.questionId, command.userId)
+        remove(questionRepository.getOwned(command.questionId, command.userId))
+    }
+
+    /** 관리자는 교사 소유와 상관없이 지운다. 지울 수 있는 조건은 교사와 같다. */
+    @Transactional
+    fun deleteAsAdmin(command: QuestionCommand.AdminDelete) {
+        remove(questionRepository.findById(command.questionId).orElseThrow { BusinessException(ErrorCode.NOT_FOUND) })
+    }
+
+    private fun remove(question: Question) {
         val courseId = requireNotNull(question.course.id)
+        val questionId = requireNotNull(question.id)
         applyDueSchedules(courseId)
         validateNotOpen(courseId, question.lessonNumber)
 
         val images = question.imageIds()
         // 응답은 문제와 보기를 모두 참조하므로 둘보다 먼저 지운다. 보기는 cascade로 함께 사라진다.
-        resultOverrideRepository.deleteAllByQuestionId(command.questionId)
-        attemptAnswerRepository.deleteAllByQuestionId(command.questionId)
+        resultOverrideRepository.deleteAllByQuestionId(questionId)
+        attemptAnswerRepository.deleteAllByQuestionId(questionId)
         questionRepository.delete(question)
         questionImageCleaner.removeUnused(images)
     }

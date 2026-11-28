@@ -66,6 +66,8 @@ cd ../Frontend-AI && npm run api:gen
 
 경로부터 갈라져 있고 권한도 서버가 분리해서 막습니다. 교사 경로는 교사 토큰이 아니면 아예 들어갈 수 없습니다. 코드도 두 묶음으로 나누는 편이 자연스럽습니다.
 
+여기에 **관리자 화면**이 따로 있습니다. 경로는 `/api/v1/admin/**`이고 `app_metadata.role`이 `admin`인 토큰만 들어갑니다. 관리자는 교사 API를 쓰지 못하고 교사도 관리자 API를 쓰지 못합니다. 9장에서 다룹니다.
+
 다만 **공통으로 쓰는 것**이 있습니다 — 로그인 처리, 에러 표시, 학교 검색. 이건 아래 4장입니다.
 
 ## 4. 공통
@@ -80,7 +82,7 @@ Authorization: Bearer <access_token>
 
 서버는 토큰을 검증하고 그 안의 사용자 식별자만 꺼내 씁니다. 비밀번호는 서버에 없습니다.
 
-**교사와 학생을 가르는 건 토큰 안의 `app_metadata.role`입니다.** 값이 `teacher`면 교사입니다. 이 값은 사용자가 바꿀 수 없는 영역에 있어야 합니다 — `user_metadata`에 넣으면 학생이 스스로 교사가 될 수 있습니다.
+**교사와 학생을 가르는 건 토큰 안의 `app_metadata.role`입니다.** 값이 `teacher`면 교사, `admin`이면 관리자, 없으면 학생이거나 아직 승인받지 않은 교사 신청자입니다. 이 값은 사용자가 바꿀 수 없는 영역에 있어야 합니다 — `user_metadata`에 넣으면 학생이 스스로 교사가 될 수 있습니다.
 
 토큰은 1시간이면 만료됩니다. 갱신 처리가 필요합니다.
 
@@ -116,7 +118,7 @@ Supabase 계정을 만드는 것과, 우리 서버에 이름·학교·학번을 
 ```
 
 - `detail`은 **사용자에게 그대로 보여 줘도 되는 한국어 문장**입니다.
-- `code`는 분기용입니다. 접두어로 도메인을 알 수 있습니다 — `C` 공통, `AU` 인증, `CL` 반·합류, `CO` 수업, `LS` 차시·문제·응시, `SP` 학생 가입 정보, `ST` 파일.
+- `code`는 분기용입니다. 접두어로 도메인을 알 수 있습니다 — `C` 공통, `AU` 인증, `CL` 반·합류, `CO` 수업, `LS` 차시·문제·응시, `SP` 학생 가입 정보, `ST` 파일, `TA` 교사 가입 신청, `AD` 관리자.
 - 전체 목록은 `common/exception/ErrorCode.kt`에 있습니다.
 
 ### 학교 검색
@@ -129,7 +131,40 @@ Supabase 계정을 만드는 것과, 우리 서버에 이름·학교·학번을 
 
 ### 5-1. 처음 들어왔을 때
 
-교사는 이메일로 가입하고, 이름과 학교를 저장합니다.
+교사는 이메일로 가입하고 **관리자 승인을 받은 뒤** 교사 화면에 들어옵니다.
+
+1. Supabase `signUp`으로 이메일 계정을 만듭니다. 이때는 역할이 없습니다.
+2. 로그인해서 `PUT /api/v1/teacher-applications/me`로 이름과 학교를 보냅니다. 상태는 `PENDING`입니다.
+3. 관리자가 승인하면 서버가 Supabase에 `role=teacher`를 넣고, 신청한 이름과 학교로 교사 정보도 저장합니다.
+4. **이미 받은 토큰에는 역할이 없습니다.** 신청자 화면에서 `GET /api/v1/teacher-applications/me`가 `APPROVED`이면 `supabase.auth.refreshSession()`을 불러 새 토큰을 받고 교사 화면으로 보냅니다.
+
+로그인 직후 분기는 이렇게 합니다.
+
+| 토큰의 role | 할 일 |
+|---|---|
+| `admin` | 관리자 화면 |
+| `teacher` | 교사 화면 (`GET /api/v1/teacher/mypage`의 `profile`이 비어 있으면 정보 입력) |
+| 없음 | `GET /api/v1/student-profiles/me`에 프로필이 있으면 학생. 없으면 `GET /api/v1/teacher-applications/me`를 보고, 신청이 있으면 상태 화면, 없으면 "학생 가입 / 교사 신청" 선택 |
+
+신청 상태 화면에서 보여 줄 것입니다.
+
+| status | 화면 |
+|---|---|
+| `PENDING` | 승인을 기다리는 중. 대기 중에는 같은 API로 이름과 학교를 고칠 수 있습니다 |
+| `APPROVED` | 세션을 갱신하고 교사 화면으로 |
+| `REJECTED` | `rejectReason`을 보여 주고 다시 신청할 수 있게 합니다 |
+| `REVOKED` | 관리자가 권한을 거뒀습니다. 다시 신청할 수 없고 관리자에게 문의하라고 안내합니다 |
+
+학번 도메인 이메일이나 학생 가입 정보가 있는 계정은 `TA004`로 거절합니다.
+
+**이메일 인증은 나중에 붙입니다.** Supabase의 Confirm email은 켜지 않습니다. 학생은 받을 수 없는 학번 주소로 가입하므로 켜면 학생 가입이 막힙니다. 대신 교사 신청에만 인증 단계를 따로 둘 예정이고, 인증을 마치면 신청의 `emailVerifiedAt`이 채워집니다. 서버가 `TEACHER_REQUIRE_EMAIL_VERIFIED=true`가 되면 인증하지 않은 신청은 승인하지 않습니다(`TA003`). 화면은 지금 `emailVerifiedAt`을 무시해도 됩니다.
+
+| | API |
+|---|---|
+| 교사 가입 신청 (처음, 수정, 재신청) | `PUT /api/v1/teacher-applications/me` |
+| 내 신청 | `GET /api/v1/teacher-applications/me` |
+
+승인을 받으면 정보가 이미 저장되어 있습니다. 바꾸려면 마이페이지에서 고칩니다.
 
 그다음 **수업이 하나도 없는 상태**로 시작합니다. 이게 정상입니다. 대시보드가 빈 화면이 아니라 **안내 화면**이 되어야 합니다. 서버가 어디까지 했는지 알려 줍니다.
 
@@ -381,5 +416,75 @@ GET /api/v1/teacher/courses/{courseId}/dashboard  →  setup
 
 ## 8. 아직 없는 것
 
+- **교사 이메일 인증** — 신청에 `emailVerifiedAt` 자리와 승인 전 확인(`TEACHER_REQUIRE_EMAIL_VERIFIED`)만 있습니다. 인증 메일을 보내고 확인하는 API는 아직 없습니다.
+
 - **학습 피드백** — 리포트에 LLM 기반 코멘트를 붙일 예정입니다. 지금은 자리가 비어 있습니다.
 - **학교 추가** — 지금은 다원중학교 하나뿐이고, 늘리려면 서버 작업이 필요합니다.
+
+## 9. 관리자
+
+관리자는 `app_metadata.role=admin`인 계정입니다. 가입 화면은 없고, Supabase SQL Editor에서 직접 넣습니다.
+
+```sql
+update auth.users
+set raw_app_meta_data = raw_app_meta_data || '{"role":"admin"}'
+where email = '관리자 이메일';
+```
+
+넣은 뒤 그 계정은 다시 로그인해야 토큰에 역할이 들어갑니다.
+
+### 9-1. 교사 가입 신청
+
+기본 화면은 대기 목록입니다. 오래 기다린 신청부터 내려옵니다.
+
+| | API |
+|---|---|
+| 신청 목록 | `GET /api/v1/admin/teacher-applications?status=PENDING&page=0&size=20` (status를 비우면 전체) |
+| 승인 | `POST /api/v1/admin/teacher-applications/{applicationId}/approve` |
+| 거절 | `POST /api/v1/admin/teacher-applications/{applicationId}/reject` `{"reason": "사유"}` (사유는 신청자에게 보입니다) |
+
+- 거절과 권한 회수 상태의 신청도 다시 승인할 수 있습니다. 이미 승인한 신청은 `TA002`입니다.
+- 관리자 자신의 신청은 승인하지 못합니다(`AD001`). 승인하면 역할이 `teacher`로 바뀌어 관리자 권한을 잃기 때문입니다.
+
+### 9-2. 교사
+
+| | API |
+|---|---|
+| 교사 목록 | `GET /api/v1/admin/teachers?schoolId=&keyword=&page=&size=` (keyword는 이름이나 이메일 일부, 대소문자 무시. 신청 기록이 없는 예전 교사는 이름으로만 찾힙니다) |
+| 권한 회수 | `POST /api/v1/admin/teachers/{teacherUserId}/revoke` |
+
+- `status`가 `APPROVED`면 교사, `REVOKED`면 권한을 거둔 교사입니다. 다시 권한을 주려면 `applicationId`로 승인 API를 부릅니다.
+- 신청 기능 전에 등록한 교사는 `email`과 `applicationId`가 `null`입니다. 권한을 거두면 그때 신청 기록이 생깁니다.
+- 권한을 거둬도 수업, 반, 기록은 그대로 남습니다.
+
+### 9-3. 학생
+
+| | API |
+|---|---|
+| 학생 목록 | `GET /api/v1/admin/students?schoolId=&grade=&classNumber=&keyword=&page=&size=` (학교, 학번 순) |
+| 비밀번호 초기화 | `POST /api/v1/admin/students/{studentUserId}/password-reset` → `{"temporaryPassword": "..."}` |
+
+임시 비밀번호는 교사 화면과 같이 **한 번만** 내려옵니다.
+
+### 9-4. 계정 정지
+
+교사와 학생 모두 `userId`로 정지합니다. 목록의 `isSuspended`로 상태를 봅니다.
+
+| | API |
+|---|---|
+| 정지 | `PUT /api/v1/admin/users/{userId}/suspension` `{"reason": "사유"}` (다시 부르면 사유만 바뀝니다) |
+| 해제 | `DELETE /api/v1/admin/users/{userId}/suspension` |
+
+- 정지하면 로그인과 토큰 갱신이 막힙니다. **이미 받은 토큰은 만료(최대 1시간)될 때까지 쓸 수 있습니다.** 권한 회수도 같습니다. 화면에 이 점을 안내해 주세요.
+- 자기 계정은 정지하지 못합니다(`AD001`).
+
+### 9-5. 문제
+
+| | API |
+|---|---|
+| 전체 문제 | `GET /api/v1/admin/questions?schoolId=&subjectId=&teacherUserId=&type=&keyword=&page=&size=` (최근에 만든 순) |
+| 문제 삭제 | `DELETE /api/v1/admin/questions/{questionId}` |
+
+- 교사 목록의 `userId`를 `teacherUserId`로 넘기면 그 교사의 문제만 봅니다.
+- 이미지만 있는 문제는 `content`가 `null`이고 `hasImage`가 `true`입니다. 목록에는 이미지 주소를 싣지 않습니다.
+- 교사 삭제와 같은 규칙입니다. 학생이 푼 기록도 함께 지워지고, 지금 열려 있는 차시의 문제는 지우지 못합니다(`LS024`). 지우기 전에 확인을 받아 주세요.

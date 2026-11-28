@@ -29,6 +29,8 @@ class SecurityConfig(
                 .permitAll()
                 .requestMatchers("${ApiPaths.TEACHER_V1}/**")
                 .hasRole("TEACHER")
+                .requestMatchers("${ApiPaths.ADMIN_V1}/**")
+                .hasRole("ADMIN")
                 .anyRequest()
                 .authenticated()
         }.oauth2ResourceServer {
