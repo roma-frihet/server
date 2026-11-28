@@ -6,4 +6,5 @@ object ApiPaths {
     const val ADMIN_V1 = "$API_V1/admin"
     const val TEACHER_V1 = "$API_V1/teacher"
     const val SCHOOLS_V1 = "$API_V1/schools"
+    const val TEACHER_APPLICATIONS_V1 = "$API_V1/teacher-applications"
 }

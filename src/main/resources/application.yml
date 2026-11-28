@@ -59,6 +59,9 @@ app:
   student:
     # 학번을 이메일 모양으로 바꿀 때 붙이는 도메인. 프론트의 가입 규칙과 반드시 같아야 한다
     login-email-domain: ${STUDENT_LOGIN_EMAIL_DOMAIN:students.roma-frihet.app}
+  teacher-application:
+    # 교사 신청 이메일 인증을 붙일 때 true로 바꾼다. 인증하지 않은 신청은 승인하지 않는다
+    require-email-verified: ${TEACHER_REQUIRE_EMAIL_VERIFIED:false}
   attempt:
     # 마감 직후 도착한 제출까지 인정하는 여유(초)
     grace-seconds: 2

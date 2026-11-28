@@ -7,7 +7,9 @@ import org.springframework.data.jpa.repository.JpaRepository
 import org.springframework.data.jpa.repository.Query
 import java.util.UUID
 
-interface QuestionRepository : JpaRepository<Question, Long> {
+interface QuestionRepository :
+    JpaRepository<Question, Long>,
+    QuestionRepositoryExtension {
     fun findByIdAndCourseUserId(id: Long, userId: UUID): Question?
 
     fun existsByCourseIdAndLessonNumber(courseId: Long, lessonNumber: Int): Boolean

@@ -35,6 +35,8 @@ class QuestionCommand private constructor() {
 
     data class Delete(val userId: UUID, val questionId: Long)
 
+    data class AdminDelete(val questionId: Long)
+
     /** targetLessonNumber가 null이면 대상 수업에 새 차시를 만들고, questionIds가 비면 차시의 모든 문제다. */
     data class Copy(
         val userId: UUID,

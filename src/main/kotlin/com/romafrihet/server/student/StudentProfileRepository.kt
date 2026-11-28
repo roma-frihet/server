@@ -4,7 +4,9 @@ import org.springframework.data.jpa.repository.EntityGraph
 import org.springframework.data.jpa.repository.JpaRepository
 import java.util.UUID
 
-interface StudentProfileRepository : JpaRepository<StudentProfile, Long> {
+interface StudentProfileRepository :
+    JpaRepository<StudentProfile, Long>,
+    StudentProfileRepositoryExtension {
     @EntityGraph(attributePaths = ["school"])
     fun findByUserId(userId: UUID): StudentProfile?
 
