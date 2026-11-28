@@ -23,6 +23,9 @@ class QuestionService(
     private val questionImageCleaner: QuestionImageCleaner,
     private val lessonRepository: LessonRepository,
     private val attemptRepository: AttemptRepository,
+    private val attemptAnswerRepository: AttemptAnswerRepository,
+    private val resultOverrideRepository: ResultOverrideRepository,
+    private val lessonOpeningRepository: LessonOpeningRepository,
     private val classroomRepository: ClassroomRepository,
     private val lessonScheduleApplier: LessonScheduleApplier,
 ) {
@@ -84,13 +87,22 @@ class QuestionService(
         questionImageCleaner.removeUnused(previousImages - question.imageIds().toSet())
     }
 
+    /**
+     * 푼 학생이 있어도 지운다. 점수는 저장하지 않고 남은 응답을 세서 만들므로 분자와 분모가 함께 줄어든다.
+     * 지금 열려 있는 반이 있으면 막는다. 풀고 있는 학생의 문제가 사라지면 next_index와 문제 수가
+     * 어긋나 남은 문제를 건너뛴다.
+     */
     @Transactional
     fun delete(command: QuestionCommand.Delete) {
         val question = questionRepository.getOwned(command.questionId, command.userId)
-        applyDueSchedules(requireNotNull(question.course.id))
-        validateNoAttempts(requireNotNull(question.course.id), question.lessonNumber)
+        val courseId = requireNotNull(question.course.id)
+        applyDueSchedules(courseId)
+        validateNotOpen(courseId, question.lessonNumber)
 
         val images = question.imageIds()
+        // 응답은 문제와 보기를 모두 참조하므로 둘보다 먼저 지운다. 보기는 cascade로 함께 사라진다.
+        resultOverrideRepository.deleteAllByQuestionId(command.questionId)
+        attemptAnswerRepository.deleteAllByQuestionId(command.questionId)
         questionRepository.delete(question)
         questionImageCleaner.removeUnused(images)
     }
@@ -113,14 +125,10 @@ class QuestionService(
         }
     }
 
-    /**
-     * 지울 때의 조건. 더하는 것과 달리 연 적이 있다는 것만으로는 막지 않는다. 아무도 풀지
-     * 않았다면 지워도 틀어질 기록이 없다. 푼 사람이 있으면 분모가 줄어 이미 매긴 점수가
-     * 거짓이 되므로 그때만 막는다.
-     */
-    private fun validateNoAttempts(courseId: Long, lessonNumber: Int) {
-        assertCheck(!attemptRepository.existsByClassroomCourseIdAndLessonNumber(courseId, lessonNumber)) {
-            ErrorCode.LESSON_HAS_ATTEMPTS
-        }
+    /** 지울 때의 조건. 더하는 것과 달리 푼 기록은 막지 않고, 지금 풀고 있을 수 있는 경우만 막는다. */
+    private fun validateNotOpen(courseId: Long, lessonNumber: Int) {
+        assertCheck(
+            !lessonOpeningRepository.existsByClassroomCourseIdAndLessonNumberAndClosedAtIsNull(courseId, lessonNumber),
+        ) { ErrorCode.LESSON_OPEN_NOW }
     }
 }

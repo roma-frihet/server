@@ -7,6 +7,7 @@ import com.querydsl.jpa.impl.JPAQueryFactory
 import com.romafrihet.server.classroom.QClassroom
 import com.romafrihet.server.classroom.QClassroomMembership
 import com.romafrihet.server.lesson.dto.LessonScoreQueryDto
+import com.romafrihet.server.lesson.projection.LessonAttemptCountProjection
 import com.romafrihet.server.lesson.projection.LessonScoreProjection
 import org.springframework.data.domain.Page
 import org.springframework.data.domain.PageImpl
@@ -92,4 +93,17 @@ class AttemptRepositoryExtensionImpl(private val queryFactory: JPAQueryFactory) 
         query.classroomId?.let(classroom.id::eq),
         query.lessonNumber?.let(opening.lessonNumber::eq),
     ).toTypedArray()
+
+    override fun queryAttemptedStudentCounts(courseId: Long): List<LessonAttemptCountProjection> = queryFactory
+        .select(
+            Projections.constructor(
+                LessonAttemptCountProjection::class.java,
+                attempt.lessonNumber,
+                attempt.userId.countDistinct(),
+            ),
+        )
+        .from(attempt)
+        .where(attempt.classroom.course.id.eq(courseId))
+        .groupBy(attempt.lessonNumber)
+        .fetch()
 }
