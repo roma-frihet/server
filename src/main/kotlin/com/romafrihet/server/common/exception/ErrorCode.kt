@@ -58,14 +58,13 @@ enum class ErrorCode(val httpStatus: HttpStatus, val code: String, val message: 
     ATTEMPT_NOT_DONE(HttpStatus.CONFLICT, "LS017", "아직 다 풀지 않은 차시입니다."),
     ANSWER_REQUIRED(HttpStatus.BAD_REQUEST, "LS018", "답을 고르거나 입력해야 합니다."),
     ANSWER_NOT_FINALIZED(HttpStatus.CONFLICT, "LS019", "아직 확정되지 않은 문제는 결과를 바꿀 수 없습니다."),
-    LESSON_HAS_ATTEMPTS(HttpStatus.CONFLICT, "LS020", "학생이 푼 차시입니다. 문제를 지우면 이미 매긴 점수가 달라집니다."),
     QUESTION_NOT_SHORT_ANSWER(HttpStatus.BAD_REQUEST, "LS021", "주관식 문제만 같은 답을 한 번에 인정할 수 있습니다."),
-
-    // LS021은 주관식 일괄 인정(#21)이 쓴다.
     LESSON_SCHEDULE_INVALID(HttpStatus.BAD_REQUEST, "LS022", "예약 시각이 올바르지 않습니다. 지금 이후로, 마감은 열기보다 뒤로 정해 주세요."),
-
-    // LS021은 주관식 일괄 인정(#21), LS022는 열기 예약(#22)이 쓴다.
     QUESTION_COPY_EMPTY(HttpStatus.BAD_REQUEST, "LS023", "복사할 문제가 없습니다."),
+
+    // 푼 기록이 있어도 지울 수 있지만, 지금 풀고 있는 학생이 있으면 막는다. 문제가 사라지면 그 학생의
+    // next_index와 문제 수가 어긋나 남은 문제를 건너뛰게 된다. 마감한 뒤에는 지울 수 있다.
+    LESSON_OPEN_NOW(HttpStatus.CONFLICT, "LS024", "지금 열려 있는 차시입니다. 마감한 뒤에 지워 주세요."),
 
     // Student profile
     STUDENT_PROFILE_ALREADY_EXISTS(HttpStatus.CONFLICT, "SP001", "이미 가입 정보를 저장했습니다."),

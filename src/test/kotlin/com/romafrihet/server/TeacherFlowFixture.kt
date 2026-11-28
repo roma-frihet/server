@@ -170,6 +170,9 @@ abstract class TeacherFlowFixture {
     protected fun openLesson(classroomId: Long, lessonNumber: Int) =
         openingService.open(LessonOpeningCommand.Change(teacherId, classroomId, lessonNumber))
 
+    protected fun closeLesson(classroomId: Long, lessonNumber: Int) =
+        openingService.close(LessonOpeningCommand.Change(teacherId, classroomId, lessonNumber))
+
     protected fun assertErrorCode(errorCode: ErrorCode, block: () -> Unit) {
         assertThatThrownBy(block).isInstanceOfSatisfying(BusinessException::class.java) {
             assertThat(it.errorCode).isEqualTo(errorCode)

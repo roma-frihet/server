@@ -9,7 +9,9 @@ import org.springframework.data.jpa.repository.Query
 import java.time.LocalDateTime
 import java.util.UUID
 
-interface AttemptAnswerRepository : JpaRepository<AttemptAnswer, Long> {
+interface AttemptAnswerRepository :
+    JpaRepository<AttemptAnswer, Long>,
+    AttemptAnswerRepositoryExtension {
     fun findByAttemptIdAndQuestionIndex(attemptId: Long, questionIndex: Int): AttemptAnswer?
 
     @EntityGraph(attributePaths = ["question"])
